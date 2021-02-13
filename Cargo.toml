@@ -6,8 +6,18 @@ edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+
+[dependencies.curv]
+git = "https://github.com/KZen-networks/curv"
+tag = "v0.2.6"
+features = ["ec_secp256k1"]
+
 [dependencies]
-#curv = { git = "https://github.com/doronz2/curv-1" , tag = "v0.2.7"}
-curv = {git  = "https://github.com/ZenGo-X/curv", tag = "v0.2.3"}
+rayon = "1.1"
+serde = { version = "1.0", features = ["derive"] }
+#curv = { git = "https://github.com/doronz2/curv-1" }
 elgamal = {git = "https://github.com/ZenGo-X/rust-elgamal"}
-vice-city = {git = "https://github.com/ZenGo-X/vice-city"}
+#elgamal = {path = "/Users/doronz/Dropbox/rustProjects/zengo_libs/rust-elgamal"}
+
+#vice-city = {git = "https://github.com/ZenGo-X/vice-city"}
+vice-city = {path = "/Users/doronz/Dropbox/rustProjects/zengo_libs/vice-city"}

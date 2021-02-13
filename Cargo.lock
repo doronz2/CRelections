@@ -4,8 +4,10 @@
 name = "CRelections"
 version = "0.1.0"
 dependencies = [
- "curv 0.2.3 (git+https://github.com/ZenGo-X/curv?tag=v0.2.3)",
+ "curv 0.2.6",
  "elgamal",
+ "rayon",
+ "serde",
  "vice-city",
 ]
 
@@ -199,24 +201,6 @@ dependencies = [
 
 [[package]]
 name = "curv"
-version = "0.2.3"
-source = "git+https://github.com/ZenGo-X/curv?tag=v0.2.3#d6c575b5711cd3d1c4e4e7f6c6b0fc0e38b3642a"
-dependencies = [
- "blake2b_simd",
- "digest",
- "hex",
- "hmac",
- "rand",
- "rust-gmp",
- "serde",
- "serde_derive",
- "sha2",
- "sha3",
- "zeroize",
-]
-
-[[package]]
-name = "curv"
 version = "0.2.6"
 source = "git+https://github.com/KZen-networks/curv?tag=v0.2.6#74b34dce07453fca5b61c4a0b31bffe189545c9a"
 dependencies = [
@@ -254,7 +238,7 @@ name = "elgamal"
 version = "0.0.2"
 source = "git+https://github.com/ZenGo-X/rust-elgamal#20b9c602b927c4f396ae5f9ae84d709ac6c33663"
 dependencies = [
- "curv 0.2.3 (git+https://github.com/KZen-networks/curv?tag=v0.2.3)",
+ "curv 0.2.3",
  "rayon",
  "serde",
 ]
@@ -377,7 +361,7 @@ name = "paillier"
 version = "0.3.4"
 source = "git+https://github.com/KZen-networks/rust-paillier?tag=v0.3.4#564352cbdf6e6d6724bacf807d9f265891795237"
 dependencies = [
- "curv 0.2.3 (git+https://github.com/KZen-networks/curv?tag=v0.2.3)",
+ "curv 0.2.3",
  "rayon",
  "serde",
 ]
@@ -669,7 +653,6 @@ checksum = "f7fe0bb3479651439c9112f72b6c505038574c9fbb575ed1bf3b797fa39dd564"
 [[package]]
 name = "vice-city"
 version = "0.1.0"
-source = "git+https://github.com/ZenGo-X/vice-city#507f8c7b9c2bf040808ca3c03035f0c6854ea298"
 dependencies = [
  "bit-vec",
  "curv 0.2.6",
@@ -720,7 +703,7 @@ version = "0.3.7"
 source = "git+https://github.com/KZen-networks/zk-paillier?tag=v0.3.7#86eb8d82be46b3677e6dbe9ee40fe9baf919860c"
 dependencies = [
  "bit-vec",
- "curv 0.2.3 (git+https://github.com/KZen-networks/curv?tag=v0.2.3)",
+ "curv 0.2.3",
  "digest",
  "paillier",
  "rand",
