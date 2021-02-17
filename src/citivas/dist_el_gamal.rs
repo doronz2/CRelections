@@ -51,7 +51,7 @@ impl KeyGenCommitment{
 impl KeyProof{
     pub fn generate_proof_for_key(sk: ElGamalPrivateKey,pk: ElGamalPublicKey, party_index:i32)-> KeyProof{
         let w = Witness{x: sk.x};
-        let dLogProof = DLogProof::prove(&w, &sk.pp);
+        let dLogProof = DLogProof::prove(&w, &pk.pp);
         KeyProof{pk, proof: dLogProof, party_index}
     }
 

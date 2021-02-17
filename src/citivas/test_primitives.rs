@@ -8,7 +8,7 @@ pub mod test {
     use curv::arithmetic::traits::Samplable;
     use curv::cryptographic_primitives::hashing::hash_sha256;
     use curv::cryptographic_primitives::hashing::traits::Hash;
-    use crate::citivas::primitives::*;
+    use crate::citivas::encryption_schemes::*;
 
     #[test]
     fn test_basic_el_gamal() {

@@ -1,7 +1,9 @@
-mod primitives;
+mod encryption_schemes;
 mod test_primitives;
 mod registrar;
 mod tellers;
 mod test;
 mod voter;
 mod dist_el_gamal;
+mod zkproofs;
+mod mix_network;
