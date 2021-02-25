@@ -6,4 +6,6 @@ mod test;
 mod voter;
 mod dist_el_gamal;
 mod zkproofs;
-mod mix_network;
+pub mod mix_network;
+mod test_mix_network;
+mod superviser;

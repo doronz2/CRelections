@@ -19,10 +19,10 @@ use serde::{Deserialize, Serialize};
 //General comment. Citivas implements the encoding messages are via exponent, i.e., G^m mod p. This is done to achieve semantic security
 // Much more efficient encoding to achieve semantic security is via quadratic residue
 
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
-pub struct ElGamalCipherTextAndPK{
-    ctx: ElGamalCiphertext,
-    pk: ElGamalPublicKey
+#[derive(Clone, PartialEq, Debug)]
+pub struct ElGamalCipherTextAndPK<'a>{
+    pub ctx: ElGamalCiphertext,
+    pub pk: &'a ElGamalPublicKey
 }
 
 
@@ -125,10 +125,10 @@ impl NonMellableElgamal {
     }
 }
 
-pub fn reencrypt(c: ElGamalCipherTextAndPK, r: BigInt)-> ElGamalCiphertext{
+pub fn reencrypt(c: &ElGamalCipherTextAndPK, r: &BigInt)-> ElGamalCiphertext{
     assert!(r.le(&c.pk.pp.q));
-    let a = c.c1;
-    let b = c.c2;
+    let a = &c.ctx.c1;
+    let b = &c.ctx.c2;
     let g_r = BigInt::mod_pow(&c.pk.pp.g, &r, &c.pk.pp.p);
     let c1 = BigInt::mod_mul(&g_r, &a,&c.pk.pp.p);
     let s = BigInt::mod_pow(&c.pk.h, &r, &c.pk.pp.p);

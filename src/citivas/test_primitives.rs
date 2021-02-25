@@ -37,7 +37,7 @@ pub mod test {
     fn test_exp_el_gamal() {
         let group_id = SupportedGroups::FFDHE4096;
         let pp = ElGamalPP::generate_from_rfc7919(group_id);
-        let alice_key_pair = ElGamalKeyPair::generate(&pp);
+        let alice_key_pai   r = ElGamalKeyPair::generate(&pp);
         let msg = BigInt::from(8283);
         let cipher = ExponentElGamal::encrypt(&msg, &alice_key_pair.pk).unwrap();
         let dec = ExponentElGamal::decrypt_exp(&cipher, &alice_key_pair.sk).unwrap();

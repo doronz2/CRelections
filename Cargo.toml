@@ -18,6 +18,7 @@ serde = { version = "1.0", features = ["derive"] }
 #curv = { git = "https://github.com/doronz2/curv-1" }
 elgamal = {git = "https://github.com/ZenGo-X/rust-elgamal"}
 #elgamal = {path = "/Users/doronz/Dropbox/rustProjects/zengo_libs/rust-elgamal"}
+rand = "0.6"
 
 #vice-city = {git = "https://github.com/ZenGo-X/vice-city"}
 vice-city = {path = "/Users/doronz/Dropbox/rustProjects/zengo_libs/vice-city"}
