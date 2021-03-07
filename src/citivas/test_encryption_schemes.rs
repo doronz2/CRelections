@@ -1,4 +1,4 @@
-pub mod test {
+pub mod test_encryption {
     use elgamal::{ElGamal,rfc7919_groups::SupportedGroups,ElGamalPP,
                   ElGamalKeyPair,ElGamalError,ElGamalCiphertext,
                   ElGamalPrivateKey,ElGamalPublicKey,ExponentElGamal};
@@ -9,6 +9,7 @@ pub mod test {
     use curv::cryptographic_primitives::hashing::hash_sha256;
     use curv::cryptographic_primitives::hashing::traits::Hash;
     use crate::citivas::encryption_schemes::*;
+
 
     #[test]
     fn test_basic_el_gamal() {
@@ -37,7 +38,7 @@ pub mod test {
     fn test_exp_el_gamal() {
         let group_id = SupportedGroups::FFDHE4096;
         let pp = ElGamalPP::generate_from_rfc7919(group_id);
-        let alice_key_pai   r = ElGamalKeyPair::generate(&pp);
+        let alice_key_pair = ElGamalKeyPair::generate(&pp);
         let msg = BigInt::from(8283);
         let cipher = ExponentElGamal::encrypt(&msg, &alice_key_pair.pk).unwrap();
         let dec = ExponentElGamal::decrypt_exp(&cipher, &alice_key_pair.sk).unwrap();
@@ -54,26 +55,50 @@ pub mod test {
 
 
     #[test]
-    fn test_primitives(){
+    fn test_QR_encoding() {
         let group_id = SupportedGroups::FFDHE4096;
         let pp = ElGamalPP::generate_from_rfc7919(group_id);
         let key_pair = ElGamalKeyPair::generate(&pp);
         for msg in 1..40 {
             let encoded_msg = encoding_quadratic_residue(BigInt::from(msg), &pp);
-            println!("{}",encoded_msg);
+            println!("{}", encoded_msg);
         }
         let encoded_msg = encoding_quadratic_residue(BigInt::from(17), &pp);
-        let encrypted_msg = NonMellableElgamal::encrypt(&encoded_msg,&key_pair.pk).unwrap();
-        let decrypted_msg = NonMellableElgamal::decrypt(encrypted_msg,&key_pair.sk).unwrap();
-        println!("Decrypted msg {}", decrypted_msg);
+        let encrypted_msg = NonMellableElgamal::encrypt(&encoded_msg, &key_pair.pk).unwrap();
+        let decrypted_msg = NonMellableElgamal::decrypt(encrypted_msg, &key_pair.sk).unwrap();
+        println!("Decrypted msg {}", &decrypted_msg);
+        assert_eq!(encoded_msg, decrypted_msg);
+    }
 
-
-        let credential_key_pair = ElGamalKeyPair::generate(&pp);
+    #[test]
+    fn test_encrypt_credentials(){
+        let group_id = SupportedGroups::FFDHE4096;
+        let pp = ElGamalPP::generate_from_rfc7919(group_id);
+        let key_pair = ElGamalKeyPair::generate(&pp);
         let rid: i32 = 76876;
         let vid: i32 = 4238976;
         let credential_nonce = BigInt::sample_below(&pp.q);
-        let encrypted_credential = NonMellableElgamal::encrypt_credential(&encoded_msg,&key_pair.pk,&credential_nonce,rid,vid).unwrap();
-        let verify_credential = NonMellableElgamal::decrypt(encrypted_credential,&key_pair.sk).unwrap();
+        let encoded_msg = encoding_quadratic_residue(BigInt::from(17), &pp);
+        let encrypted_credential = NonMellableElgamal::encrypt_credential(&encoded_msg,&key_pair.pk,&credential_nonce,rid.clone(),vid.clone()).unwrap();
+        println!("enc cred: {:#?}", encrypted_credential);
+        let verify_credential = NonMellableElgamal::verify_credential(&encrypted_credential,rid, vid, &pp);
+        assert!(verify_credential);
     }
 
+    #[test]
+    fn test_reencryption(){
+        let group_id = SupportedGroups::FFDHE4096;
+        let pp = ElGamalPP::generate_from_rfc7919(group_id);
+        let key_pair = ElGamalKeyPair::generate(&pp);
+        let msg = 269;
+        let encoded_msg = encoding_quadratic_residue(BigInt::from(17), &pp);
+        let r = BigInt::sample_below(&pp.q);
+        let ctx = elgamal::ElGamal::encrypt_from_predefined_randomness(
+            &BigInt::from(encoded_msg.clone()),&key_pair.pk, &r).unwrap();
+        let ctx_and_pk = ElGamalCipherTextAndPK{ ctx, pk: &key_pair.pk };//need to get read of the struct  ElGamalCipherTextAndPK and create voter with pk
+        let reencrypted_ctx = reencrypt(&ctx_and_pk,&r);
+        let decrypted_msg = ElGamal::decrypt(&reencrypted_ctx, &key_pair.sk).unwrap();
+        assert_eq!(encoded_msg, decrypted_msg);
+    }
 }
+

@@ -1,11 +1,12 @@
 mod encryption_schemes;
-mod test_primitives;
 mod registrar;
 mod tellers;
-mod test;
+mod test_voter;
 mod voter;
 mod dist_el_gamal;
 mod zkproofs;
 pub mod mix_network;
-mod test_mix_network;
 mod superviser;
+mod test_encryption_schemes;
+mod test_zkproofs;
+

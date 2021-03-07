@@ -40,11 +40,12 @@ pub struct NonMellableElgamal{
 //it does not appear in Citivas
 pub fn encoding_quadratic_residue(m: BigInt, pp: &elgamal::ElGamalPP)-> BigInt{
     //modify m by adding 1 to m because the subgroup Gq does not include the value zero
+    //Be very aware of that as it may originate a bug somewhere in the code!!!
     let m_modified = BigInt::mod_add(&m, &BigInt::one(), &pp.p);
     //check if m is QR according to Euler criterion
-    let test_QR = BigInt::mod_pow(&m_modified, &pp.q, &pp.p);
+    let test_if_QR = BigInt::mod_pow(&m_modified, &pp.q, &pp.p);
     //if m is QR then return m otherwise return p - m
-    return if test_QR == BigInt::one() {
+    return if test_if_QR == BigInt::one() {
         m_modified
     } else {
         BigInt::mod_sub(&pp.p, &m_modified, &pp.p)
@@ -104,22 +105,23 @@ impl NonMellableElgamal {
         let g_t = BigInt::mod_pow(&KTT.pp.g, &t, &KTT.pp.p);
         let a = cipher.c1;
         let b = cipher.c2;
-        let c = BigInt::mod_mul(&hash_sha256::HSha256::create_hash(
-            &[&g_t, &a, &b, &BigInt::from(rid), &BigInt::from(vid)]), &BigInt::from(1), &KTT.pp.q
-        );
+        let c = hash_sha256::HSha256::create_hash(
+            &[&g_t, &a, &b, &BigInt::from(rid), &BigInt::from(vid)])
+            .mod_floor(&KTT.pp.q);
         let d = BigInt::mod_add(&t, &BigInt::mod_mul(&c, &r, &KTT.pp.q), &&KTT.pp.q);
         Ok(Self{ a, b, c, d })
     }
 
 
-    pub fn verify_credential(public_credential_share: &NonMellableElgamal, rid: &BigInt, vid: &BigInt, pp: elgamal::ElGamalPP) -> bool {
+    pub fn verify_credential(public_credential_share: &NonMellableElgamal, rid: i32, vid: i32, pp: &elgamal::ElGamalPP) -> bool {
         let g_d = BigInt::mod_pow(&pp.g, &public_credential_share.d, &pp.p);
         let a_c_inv = BigInt::mod_inv(
             &BigInt::mod_pow(&public_credential_share.a, &public_credential_share.c, &pp.p)
             , &&pp.p);
         let pre_hash_left_term = BigInt::mod_mul(&g_d, &a_c_inv, &pp.p);
         let V = hash_sha256::HSha256::create_hash(
-            &[&pre_hash_left_term, &public_credential_share.a, &public_credential_share.b]
+            &[&pre_hash_left_term, &public_credential_share.a, &public_credential_share.b,
+                &BigInt::from(rid), &BigInt::from(vid)]
         );
         V == public_credential_share.c
     }
@@ -139,7 +141,4 @@ pub fn reencrypt(c: &ElGamalCipherTextAndPK, r: &BigInt)-> ElGamalCiphertext{
         pp: c.pk.pp.clone()
     }
 }
-
-
-
 

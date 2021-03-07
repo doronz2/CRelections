@@ -75,7 +75,7 @@ impl <'a>MixInput<'a>{
                 ));
             } else {
                 L_C.push(hash_sha256::HSha256::create_hash(
-                    &[&BigInt::from(inverse_permuteddices[i] as i32), &w_i]
+                    &[&BigInt::from(inverse_permuted_indices[i] as i32), &w_i]
                 ));
             }
         }
@@ -100,5 +100,5 @@ pub fn run_mix(){
         pp,
         O: BigInt::from(872368723)
     };
-    let mix_output = mix_input.mix();
+    //let mix_output = mix_input.mix();
 }

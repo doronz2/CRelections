@@ -13,27 +13,6 @@ use serde::{Deserialize, Serialize};
 
 
 
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
-pub struct DVRP_PublicInput{ //stands for designated-verifier reencryption proof
-x: ElGamalPublicKey, //El-Gamal cipher
-y: ElGamalPublicKey, //El-Gamal cipher
-x_tag: ElGamalPublicKey, //El-Gamal cipher reencyption of x
-y_tag: ElGamalPublicKey, //El-Gamal cipher reencyption of y
-h_v: ElGamalKeyPair, //public key pair
-g: BigInt, //generator of the x group
-h: BigInt, //generator of the y group
-q: BigInt, //order of the groups
-p: BigInt //field size
-}
-
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
-pub struct DVRP_ProverOutput{ //stands for designated-verifier reencryption proof
-c: BigInt,
-    w: BigInt,
-    r: BigInt,
-    u: BigInt,
-}
-
 const L:usize = 8; //number of alternatives to the encryption
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
@@ -106,66 +85,6 @@ fn div_and_pow(x: &BigInt, x_tag: &BigInt, c: &BigInt, p: &BigInt) -> BigInt {
     BigInt::mod_pow(&(x_tag * BigInt::mod_inv(&x, &p)), &c, &p)
 }
 
-impl DVRP_PublicInput {
-    pub fn DVRP_prover(self, eta: BigInt) -> DVRP_ProverOutput {
-        let d = BigInt::sample_below(&self.q);
-        let w = BigInt::sample_below(&self.q);
-        let r = BigInt::sample_below(&self.q);
-        let a = BigInt::mod_pow(&self.g, &d, &self.p);
-        let b = BigInt::mod_pow(&self.h, &d, &self.p);
-        let s = BigInt::mod_mul(&BigInt::mod_pow(&self.g, &w, &self.p),
-                                &BigInt::mod_pow(&self.h_v.pk.h, &r, &self.p),
-                                &self.p);
-        let c = BigInt::mod_floor(&hash_sha256::HSha256::create_hash(
-            &[&self.x.h, &self.y.h, &self.x_tag.h, &self.y_tag.h, &a, &b, &s]
-        ), &self.q);
-        let u = &d + &eta * (&c + &w);
-        DVRP_ProverOutput { c, w, r, u }
-    }
-
-
-    pub fn DVRP_verifier(self, po: DVRP_ProverOutput) -> bool {
-        //a′ = g^u/(x′/x)^(c+w) mod p
-        let a_tag: BigInt = BigInt::mod_pow(&self.g, &po.u, &self.p) *
-            BigInt::mod_inv(&div_and_pow(&self.x.h, &self.x_tag.h, &(&po.c + &po.w), &self.p)
-                            , &self.p);
-        let b_tag: BigInt = BigInt::mod_pow(&self.h, &po.u, &self.p) *
-            BigInt::mod_inv(&div_and_pow(&self.y.h, &self.y_tag.h, &(&po.c + &po.w), &self.p)
-                            , &self.p);
-        let s_tag = BigInt::mod_mul(&BigInt::mod_pow(&self.g, &po.w, &self.p),
-                                    &BigInt::mod_pow(&self.h_v.pk.h, &po.r, &self.p),
-                                    &self.p);
-        let c_tag = BigInt::mod_floor(&hash_sha256::HSha256::create_hash(
-            &[&self.x.h, &self.y.h, &self.x_tag.h, &self.y_tag.h, &a_tag, &b_tag, &s_tag]
-        ), &self.q);
-        c_tag == po.c
-    }
-
-    pub fn fakeDVRP_prover(self, eta: BigInt) -> DVRP_ProverOutput {
-        let alpha = BigInt::sample_below(&self.q);
-        let beta = BigInt::sample_below(&self.q);
-        let u_tilde = BigInt::sample_below(&self.q);
-        let a_tilde: BigInt = BigInt::mod_pow(&self.g, &u_tilde, &self.p) *
-            BigInt::mod_inv(&div_and_pow(&self.x.h, &self.x_tag.h, &alpha, &self.p)
-                            , &self.p);
-        let b_tilde: BigInt = BigInt::mod_pow(&self.h, &u_tilde, &self.p) *
-            BigInt::mod_inv(&div_and_pow(&self.y.h, &self.y_tag.h, &alpha, &self.p)
-                            , &self.p);
-        let s_tilde = BigInt::mod_pow(&self.g, &beta, &self.p);
-        let c_tilde = BigInt::mod_floor(&hash_sha256::HSha256::create_hash(
-            &[&self.x.h, &self.y.h, &self.x_tag.h, &self.y_tag.h, &a_tilde, &b_tilde, &s_tilde]
-        ), &self.q);
-        let w_tilde = BigInt::mod_floor(&(&alpha - &c_tilde), &self.q);
-        let r_tilde = BigInt::mod_floor(&(&(&beta - &w_tilde) * BigInt::mod_inv(&self.h_v.sk.x, &self.q))
-                                        , &self.q);
-        DVRP_ProverOutput{
-            c: c_tilde,
-            w: w_tilde,
-            r: r_tilde,
-            u: u_tilde
-        }
-    }
-}
 
 // This function proves the there is some c_i in c_1,...,c_l that is an encryption of C
 // Hirt, Sako: Efficient receipt-free voting based on homomorphic encryption.

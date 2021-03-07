@@ -14,31 +14,31 @@ use std::str::FromStr;
 use crate::citivas::encryption_schemes::{reencrypt, ElGamalCipherTextAndPK};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
-use crate::citivas::superviser::PP;
+use crate::citivas::superviser::SystemParameters;
+use crate::citivas::superviser;
 
+const OUT: bool = true;
+const IN: bool = false;
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Teller{
     pub key_pair: ElGamalKeyPair,
-    num_of_tellers: usize,
-    num_of_voters: usize,
-    O: BigInt
+    sp: SystemParameters
 }
 
 
 impl Teller{
-    pub fn createTeller(pp:PP)-> Self{
-        let key_pair = ElGamalKeyPair::generate(&pp.pp);
+    pub fn createTeller(sp: SystemParameters)-> Self{
+        let key_pair = ElGamalKeyPair::generate(&sp.pp);
         Teller{
             key_pair,
-            num_of_tellers: pp.num_of_tallies,
-            num_of_voters: pp.num_of_voters,
-            O: pp.O }
+            sp
+        }
     }
 
     pub fn commit(self)-> BigInt{
-        let q = BigInt::sample_below( &self.O);
-        hash_sha256::HSha256::create_hash(&[&q]);//commitment to q
+        let q = BigInt::sample_below( &self.sp.O);
+        hash_sha256::HSha256::create_hash(&[&q])//commitment to q
     }
 
 
@@ -55,7 +55,6 @@ pub struct TellerMixParameters{
 #[derive(Clone, PartialEq, Debug)]
 pub struct MixInput<'a>{
     pub(crate) ctx_list : Vec<ElGamalCipherTextAndPK<'a>>,
-    pub(crate) O: BigInt //a set (of size O) is specified in Citivas where random parameter are selected from
 }
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
@@ -65,17 +64,18 @@ pub struct MixOutput{
 
 }
 
+impl Teller{
 
-
-impl <'a>MixInput<'a>{
     //not that some code is redundent as the lists (permuted and its inverse are computed twice for both directions
-    pub fn mix(mut self, dir:bool ) -> (MixOutput, TellerMixParameters) {
+    pub fn mix(mut self, mix_input: MixInput, dir:bool ) -> (MixOutput, TellerMixParameters) {
         let mut rng = thread_rng();
+        let M = self.sp.num_of_voters;
+        let mut permuted_indices = Vec::with_capacity(M);
 
-        let mut permuted_indices: [usize;M] = [0;M];
-        for i in 0..M{
-            permuted_indices[i] = i;
-        }
+        //for i in 0..M{
+       //     permuted_indices[i] = i;
+       // }
+
         permuted_indices.shuffle(&mut rng);
         println!("permuted: {:?}", permuted_indices);
         // let inverse_permuted_indices: [usize;M] = [0;M];
@@ -88,7 +88,7 @@ impl <'a>MixInput<'a>{
 
         let mut permuted_ctx: Vec<&ElGamalCipherTextAndPK>  = permuted_indices
             .iter()
-            .map(|&i| self.ctx_list.get(i).unwrap())
+            .map(|&i| mix_input.ctx_list.get(i).unwrap())
             .collect();
 
         let mut L_R = Vec::with_capacity(M);
@@ -97,12 +97,12 @@ impl <'a>MixInput<'a>{
         let mut w_list: Vec<BigInt> = Vec::with_capacity(M);
 
         for i in 0..M {
-            let r_i = BigInt::sample_below(&self.pp.q);
-            r_list.push(r_i);
+            let r_i = BigInt::sample_below(&self.sp.pp.q);
+            r_list.push(r_i.clone());
             L_R.push(reencrypt(&permuted_ctx[i], &r_i));
 
-            let w_i = BigInt::sample_below( &self.O);
-            w_list.push(w_i);
+            let w_i = BigInt::sample_below( &self.sp.O);
+            w_list.push(w_i.clone());
 
             if dir == IN {
                 L_C.push(hash_sha256::HSha256::create_hash(
@@ -110,7 +110,7 @@ impl <'a>MixInput<'a>{
                 ));
             } else {
                 L_C.push(hash_sha256::HSha256::create_hash(
-                    &[&BigInt::from(inverse_permuteddices[i] as i32), &w_i]
+                    &[&BigInt::from(inverse_permuted_indices[i] as i32), &w_i]
                 ));
             }
         }
