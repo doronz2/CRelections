@@ -10,7 +10,7 @@ use curv::cryptographic_primitives::hashing::traits::Hash;
 use std::convert::TryInto;
 use vice_city::ProofError;
 use serde::{Deserialize, Serialize};
-
+use crate::citivas::voter::Voter;
 
 
 const L:usize = 8; //number of alternatives to the encryption
@@ -51,13 +51,13 @@ pub struct Statement {
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct VotePfPublicInput{
-    pp: ElGamalPP,
-    ctx: BigInt,
-    a1: BigInt,
-    a2: BigInt,
-    b1: BigInt,
-    b2: BigInt,
+    pub(crate) a1: BigInt,
+    pub(crate) a2: BigInt,
+    pub(crate) b1: BigInt,
+    pub(crate) b2: BigInt,
+    pub(crate) ctx: BigInt
 }
+
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct VotePfProof{
@@ -79,16 +79,43 @@ pub trait ProveDLog {
     fn verify(&self, statement: &Statement, pp: &ElGamalPP) -> Result<(), ProofError>;
 }
 
+impl VoteWitness{
+    pub fn generate_example_witness()-> Self{
+        Self{
+            alpha_1: BigInt::from(6),
+            alpha_2: BigInt::from(7)
+        }
+    }
 
+    pub fn generate_random_witness(pp: &ElGamalPP)-> Self{
+        Self{
+            alpha_1: BigInt::sample_below(&pp.q),
+            alpha_2: BigInt::sample_below(&pp.q)
+        }
+    }
+}
 //a technical function that computes (x/x')^c mod p
 fn div_and_pow(x: &BigInt, x_tag: &BigInt, c: &BigInt, p: &BigInt) -> BigInt {
     BigInt::mod_pow(&(x_tag * BigInt::mod_inv(&x, &p)), &c, &p)
 }
 
+impl VotePfPublicInput{
+    pub fn generateRandomInput(pp: &ElGamalPP, witness: &VoteWitness)-> Self{
+        let  a1: BigInt = BigInt::mod_pow(&pp.g, &witness.alpha_1, &pp.p);
+        let  a2: BigInt = BigInt::mod_pow(&pp.g, &witness.alpha_2, &pp.p);
+        let  b1: BigInt = BigInt::sample_below(&pp.p);
+        let  b2: BigInt = BigInt::sample_below(&pp.p);
+        let  ctx: BigInt = BigInt::sample_below(&pp.p);
+        Self{a1,a2,b1,b2, ctx}
+    }
+}
 
-// This function proves the there is some c_i in c_1,...,c_l that is an encryption of C
-// Hirt, Sako: Efficient receipt-free voting based on homomorphic encryption.
-// The following function is an attempt to copy from there with Fiat-Shamir heuristic
+
+// This function proves the there is some c_t (for a private t) in c_1,...,c_l that is
+// an encryption of some cipher text c=(u,v)
+// The following function is an attempt to implement [1] with Fiat-Shamir heuristic
+// [1]: Hirt, Sako: Efficient receipt-free voting based on homomorphic encryption.
+
 impl ReencProofInput {
     pub fn reenc_1_out_of_L_prover(self, t: usize, eta: BigInt) -> ReencProofOutput {
         let (x, y) = self.c;
@@ -172,29 +199,31 @@ impl ReencProofInput {
 
 
 impl VotePfPublicInput {
-    pub fn votepf_prover(self, witness: VoteWitness) -> VotePfProof {
-        let r1 = BigInt::sample_below(&self.pp.q);
-        let r2 = BigInt::sample_below(&self.pp.q);
-        let mut E = vec![&self.pp.g, &self.a1, &self.b1, &self.a2, &self.b2, &self.ctx];
-        let pre_hash_1 = BigInt::mod_pow(&self.pp.g, &r1, &self.pp.p);
-        let pre_hash_2 = BigInt::mod_pow(&self.pp.g, &r2, &self.pp.p);
+    pub fn votepf_prover(&self,  voter: &Voter, witness: VoteWitness ) -> VotePfProof {
+        let r1 = BigInt::sample_below(&voter.pp.q);
+        let r2 = BigInt::sample_below(&voter.pp.q);
+        let mut E = vec![&voter.pp.g, &self.a1, &self.b1, &self.a2, &self.b2, &self.ctx];
+        let pre_hash_1 = BigInt::mod_pow(&voter.pp.g, &r1, &voter.pp.p);
+        let pre_hash_2 = BigInt::mod_pow(&voter.pp.g, &r2, &voter.pp.p);
         E.push(&pre_hash_1);
         E.push(&pre_hash_2);
-        let c = hash_sha256::HSha256::create_hash(&E).mod_floor(&self.pp.q);
-        let s1 = r1 - &c * witness.alpha_1;
-        let s2 = r2 - &c * witness.alpha_2;
+//        println!("E = {:#?}", E);
+       let c = hash_sha256::HSha256::create_hash(&E).mod_floor(&voter.pp.q);
+        let s1 = (r1 - &c * witness.alpha_1).mod_floor(&voter.pp.q);
+        let s2 = (r2 - &c * witness.alpha_2).mod_floor(&voter.pp.q);
         VotePfProof { c, s1, s2 }
     }
 
-        pub fn votepf_verifier(self, proof: VotePfProof) -> bool {
-            let mut E = vec![&self.pp.g, &self.a1, &self.b1, &self.a2, &self.b2, &self.ctx];
-            let pre_hash_1 = (BigInt::mod_pow(&self.pp.g, &proof.s1, &self.pp.p) *
-                BigInt::mod_pow(&self.a1, &proof.c, &self.pp.p)).mod_floor(&self.pp.p);
-            let pre_hash_2 = (BigInt::mod_pow(&self.pp.g, &proof.s2, &self.pp.p) *
-                BigInt::mod_pow(&self.a2, &proof.c, &self.pp.p)).mod_floor(&self.pp.p);
+        pub fn votepf_verifier(&self, voter: &Voter, proof: VotePfProof) -> bool {
+            let mut E = vec![&voter.pp.g, &self.a1, &self.b1, &self.a2, &self.b2, &self.ctx];
+            let pre_hash_1 = (BigInt::mod_pow(&voter.pp.g, &proof.s1, &voter.pp.p) *
+                BigInt::mod_pow(&self.a1, &proof.c, &voter.pp.p)).mod_floor(&voter.pp.p);
+            let pre_hash_2 = (BigInt::mod_pow(&voter.pp.g, &proof.s2, &voter.pp.p) *
+                BigInt::mod_pow(&self.a2, &proof.c, &voter.pp.p)).mod_floor(&voter.pp.p);
             E.push(&pre_hash_1);
             E.push(&pre_hash_2);
-            let c = hash_sha256::HSha256::create_hash(&E).mod_floor(&self.pp.q);
+         //   println!("E = {:#?}", E);
+            let c = hash_sha256::HSha256::create_hash(&E).mod_floor(&voter.pp.q);
             proof.c == c
         }
     }

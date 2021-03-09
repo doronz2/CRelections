@@ -12,6 +12,19 @@ pub mod test_zk_proofs {
     use crate::citivas::zkproofs::*;
     use crate::citivas::voter::*;
 
+    #[test]
+    fn test_votePF(){
+        let group_id = SupportedGroups::FFDHE4096;
+        let pp = ElGamalPP::generate_from_rfc7919(group_id);
+        let witness = VoteWitness::generate_random_witness(&pp);
+        let inputPF = VotePfPublicInput::generateRandomInput(&pp, &witness);
+        let voter_number = 1;
+        let voter = Voter::create_voter(voter_number,pp.clone());
+        let proof  = inputPF.votepf_prover(&voter, witness, );
+        let verification = inputPF.votepf_verifier(&voter, proof);
+        assert!(verification);
+    }
+
 
 
 }

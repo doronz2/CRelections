@@ -21,7 +21,7 @@ use crate::citivas::superviser;
 pub struct Voter{
     designation_key_pair: ElGamalKeyPair,
     voter_number: usize,
-    pp:ElGamalPP
+    pub(crate) pp:ElGamalPP
 }
 
 
@@ -39,6 +39,8 @@ c: BigInt,
     r: BigInt,
     u: BigInt,
 }
+
+
 
 //a technical function that computes (x/x')^c mod p
 pub fn div_and_pow(x: &BigInt, x_tag: &BigInt, c: &BigInt, p: &BigInt) -> BigInt {
