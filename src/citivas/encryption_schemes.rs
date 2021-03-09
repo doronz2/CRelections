@@ -142,3 +142,26 @@ pub fn reencrypt(c: &ElGamalCipherTextAndPK, r: &BigInt)-> ElGamalCiphertext{
     }
 }
 
+
+pub fn reencrypt_disjoint_structs(c: &ElGamalCiphertext, pk: ElGamalPublicKey, r: &BigInt)-> ElGamalCiphertext{
+
+    if r.ge(&c.pp.q){
+        panic!("not a valid random r");
+    };
+    if pk.pp != c.pp {
+        panic!("mismatch pp");
+    }
+    let a = &c.c1;
+    let b = &c.c2;
+    let g_r = BigInt::mod_pow(&c.pp.g, &r, &c.pp.p);
+    let c1 = BigInt::mod_mul(&g_r, &a,&c.pp.p);
+    let s = BigInt::mod_pow(&pk.h, &r, &c.pp.p);
+    let c2 = BigInt::mod_mul(&s, &b, &c.pp.p);
+    ElGamalCiphertext {
+        c1,
+        c2,
+        pp: c.pp.clone()
+    }
+}
+
+

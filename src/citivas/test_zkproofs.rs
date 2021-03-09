@@ -20,12 +20,30 @@ pub mod test_zk_proofs {
         let inputPF = VotePfPublicInput::generateRandomInput(&pp, &witness);
         let voter_number = 1;
         let voter = Voter::create_voter(voter_number,pp.clone());
-        let proof  = inputPF.votepf_prover(&voter, witness, );
-        let verification = inputPF.votepf_verifier(&voter, proof);
+        let proof  = inputPF.votepf_prover(&voter, witness);
+        let verification = proof.votepf_verifier(&inputPF,&voter);
         assert!(verification);
     }
 
-
+    #[test]
+    pub fn test_reenc_1_out_of_L(){
+        let group_id = SupportedGroups::FFDHE4096;
+        let pp = ElGamalPP::generate_from_rfc7919(group_id);
+        let key_pair = ElGamalKeyPair::generate(&pp);
+        let msg = BigInt::from(72364932);
+        let ctx = &ElGamal::encrypt(&msg, &key_pair.pk).unwrap();
+        let L = 8;
+        let mut C_list: Vec<ElGamalCiphertext> = (0..L)
+            .map(|_| ElGamal::encrypt(&BigInt::sample_below(&pp.q),&key_pair.pk ).unwrap())
+            .collect();
+        let t = 5;
+        let enc_key = BigInt::from(17);
+        let cipher = ElGamalCipherTextAndPK{ ctx: ctx.clone(), pk: &key_pair.pk };
+        C_list[t] = reencrypt(&cipher,&enc_key);
+        let input = ReencProofInput{ C_list, c: ctx.clone() };
+        let proof = input.reenc_1_out_of_L_prover(&pp,&key_pair.pk, t, enc_key, L);
+        let verification = input.reenc_1_out_of_L_verifier(&pp,&key_pair.pk, proof, L);
+    }
 
 }
 

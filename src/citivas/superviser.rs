@@ -12,7 +12,7 @@ use vice_city::ProofError;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use crate::Error;
-use crate::citivas::encryption_schemes::{ElGamalCipherTextAndPK,reencrypt, encoding_quadratic_residue};
+use crate::citivas::encryption_schemes::{reencrypt, encoding_quadratic_residue, ElGamalCipherTextAndPK};
 use crate::citivas::tellers::*;
 
 
