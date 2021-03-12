@@ -11,6 +11,7 @@ pub mod test_zk_proofs {
     use crate::citivas::encryption_schemes::*;
     use crate::citivas::zkproofs::*;
     use crate::citivas::voter::*;
+    use crate::{generate_keys_toy, encrypt_toy, generate_pp_toy};
 
     #[test]
     fn test_votePF(){
@@ -32,18 +33,21 @@ pub mod test_zk_proofs {
         let key_pair = ElGamalKeyPair::generate(&pp);
         let msg = BigInt::from(72364932);
         let ctx = &ElGamal::encrypt(&msg, &key_pair.pk).unwrap();
-        let L = 8;
+        let L = 3;
         let mut C_list: Vec<ElGamalCiphertext> = (0..L)
             .map(|_| ElGamal::encrypt(&BigInt::sample_below(&pp.q),&key_pair.pk ).unwrap())
             .collect();
-        let t = 5;
+
+        let t = 1;
         let enc_key = BigInt::from(17);
         let cipher = ElGamalCipherTextAndPK{ ctx: ctx.clone(), pk: &key_pair.pk };
         C_list[t] = reencrypt(&cipher,&enc_key);
         let input = ReencProofInput{ C_list, c: ctx.clone() };
         let proof = input.reenc_1_out_of_L_prover(&pp,&key_pair.pk, t, enc_key, L);
         let verification = input.reenc_1_out_of_L_verifier(&pp,&key_pair.pk, proof, L);
+        assert!(verification);
     }
+
 
 }
 

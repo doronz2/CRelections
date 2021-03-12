@@ -85,13 +85,13 @@ impl <'a>MixInput<'a>{
 }
 
 
-
-pub fn run_mix(){
+#[test]
+pub fn test_mix(){
     let group_id = SupportedGroups::FFDHE4096;
     let pp = ElGamalPP::generate_from_rfc7919(group_id);
     let key_pair = ElGamalKeyPair::generate(&pp);
     let pk = &key_pair.pk;
-    let messages = [BigInt::from(12),BigInt::from(13),BigInt::from(14)];
+    let messages = [BigInt::from(6),BigInt::from(7),BigInt::from(8),BigInt::from(9)];
     let mix_input = MixInput{
         ctx_list: messages.iter().map(|msg|{
             let ctx = ElGamal::encrypt(msg, pk).unwrap();
@@ -100,5 +100,6 @@ pub fn run_mix(){
         pp,
         O: BigInt::from(872368723)
     };
+    //mix_input.mix()
     //let mix_output = mix_input.mix();
 }

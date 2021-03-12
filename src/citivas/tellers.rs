@@ -8,7 +8,6 @@ use curv::arithmetic::traits::Samplable;
 use curv::cryptographic_primitives::hashing::hash_sha256;
 use curv::cryptographic_primitives::hashing::traits::Hash;
 use std::convert::TryInto;
-use vice_city::ProofError;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use crate::citivas::encryption_schemes::{reencrypt, ElGamalCipherTextAndPK};

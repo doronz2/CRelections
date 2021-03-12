@@ -88,8 +88,8 @@ impl VoteWitness{
     }
 }
 //a technical function that computes (x/x')^c mod p
-fn div_and_pow(x: &BigInt, x_tag: &BigInt, c: &BigInt, p: &BigInt) -> BigInt {
-    BigInt::mod_pow(&(x_tag * BigInt::mod_inv(&x, &p)), &c, &p)
+fn div_and_pow(denom: &BigInt, nom: &BigInt, c: &BigInt, p: &BigInt) -> BigInt {
+    BigInt::mod_pow(&(nom * BigInt::mod_inv(&denom, &p)), &c, &p)
 }
 
 impl VotePfPublicInput{
@@ -112,12 +112,15 @@ impl VotePfPublicInput{
 // [1]: Hirt, Sako: Efficient receipt-free voting based on homomorphic encryption.
 
 impl ReencProofInput {
-    pub fn reenc_1_out_of_L_prover(&self, pp: &ElGamalPP, pk: &ElGamalPublicKey, t: usize, eta: BigInt, L:usize) -> ReencProofOutput {
-        if self.C_list.len() != L{
+    pub fn reenc_1_out_of_L_prover(&self, pp: &ElGamalPP, pk: &ElGamalPublicKey, t: usize, eta: BigInt, L: usize) -> ReencProofOutput {
+        if self.C_list.len() != L {
             panic!("Size of the list doesn't match the specified list length L")
         }
-        if *pp != pk.pp{
+        if *pp != pk.pp {
             panic!("mismatch pp");
+        }
+        if t >= L {
+            panic! {"t must be smaller than the size of the list"}
         }
         let mut list_d_i = Vec::with_capacity(L);
         let mut list_r_i = Vec::with_capacity(L);
@@ -133,9 +136,9 @@ impl ReencProofInput {
         for i in 0..L {
             u_i = &self.C_list[i].c1;
             v_i = &self.C_list[i].c2;
-            list_a_i.push(BigInt::mod_floor(&(div_and_pow(u_i, &self.c.c1, &list_d_i[i], &pp.p) *
+            list_a_i.push(BigInt::mod_floor(&(div_and_pow( &self.c.c1, u_i,&list_d_i[i], &pp.p) *
                 BigInt::mod_pow(&pp.g, &list_r_i[i], &pp.p)), &pp.p));
-            list_b_i.push(BigInt::mod_floor(&(div_and_pow(v_i, &self.c.c2, &list_d_i[i], &pp.p) *
+            list_b_i.push(BigInt::mod_floor(&(div_and_pow( &self.c.c2, v_i,&list_d_i[i], &pp.p) *
                 BigInt::mod_pow(&pk.h, &list_r_i[i], &pp.p)), &pp.p));
         }
 
@@ -151,23 +154,24 @@ impl ReencProofInput {
             }
             e_vec
         };
+
         E.extend(list_a_i.iter());
         E.extend(list_b_i.iter());
+       // println!("E:{:#?}", E);
 
         let c = BigInt::mod_floor(&hash_sha256::HSha256::create_hash(
             &E)
                                   , &pp.q);
         let w = BigInt::mod_floor(&(&eta * &list_d_i[t] + &list_r_i[t]), &pp.q);
-        let sum: BigInt = list_d_i.iter().fold(BigInt::zero(), |a, b| a + b);
-        let tmp = sum - &list_d_i[t];
+        let sum: BigInt = list_d_i.iter().fold(BigInt::zero(), |a, b| a + b).mod_floor(&pp.q);
+        let tmp = (sum - &list_d_i[t]).mod_floor(&pp.q);
         list_d_i[t] = BigInt::mod_floor(&(c - tmp)
                                         , &pp.q);
         list_r_i[t] = BigInt::mod_floor(&(&w - &eta * &list_d_i[t]), &pp.q);
         ReencProofOutput { D: list_d_i.try_into().unwrap(), R: list_r_i.try_into().unwrap() }
     }
 
-    pub fn reenc_1_out_of_L_verifier(&self,  pp: &ElGamalPP, pk: &ElGamalPublicKey, proof: ReencProofOutput, L:usize) -> bool {
-
+    pub fn reenc_1_out_of_L_verifier(&self, pp: &ElGamalPP, pk: &ElGamalPublicKey, proof: ReencProofOutput, L: usize) -> bool {
         let mut list_a_i = Vec::with_capacity(L);
         let mut list_b_i = Vec::with_capacity(L);
 
@@ -176,9 +180,9 @@ impl ReencProofInput {
         for i in 0..L {
             u_i = &self.C_list[i].c1;
             v_i = &self.C_list[i].c2;
-            list_a_i.push(BigInt::mod_floor(&(div_and_pow(&u_i, &self.c.c1, &proof.D[i], &pp.p) *
+            list_a_i.push(BigInt::mod_floor(&(div_and_pow( &self.c.c1, &u_i,&proof.D[i], &pp.p) *
                 BigInt::mod_pow(&pp.g, &proof.R[i], &pp.p)), &pp.p));
-            list_b_i.push(BigInt::mod_floor(&(div_and_pow(&v_i, &self.c.c2, &proof.D[i], &pp.p) *
+            list_b_i.push(BigInt::mod_floor(&(div_and_pow(&self.c.c2, &v_i, &proof.D[i], &pp.p) *
                 BigInt::mod_pow(&pk.h, &proof.R[i], &pp.p)), &pp.p));
         }
 
@@ -194,8 +198,10 @@ impl ReencProofInput {
             }
             e_vec
         };
+
         E.extend(list_a_i.iter());
         E.extend(list_b_i.iter());
+    //    println!("E:{:#?}", E);
 
         let c = hash_sha256::HSha256::create_hash(&E).mod_floor(&pp.q);
         let sum: BigInt = proof.D.iter().fold(BigInt::zero(), |a, b| a + b);
@@ -203,7 +209,6 @@ impl ReencProofInput {
         return c == D
     }
 }
-
 
 impl VotePfPublicInput {
     pub fn votepf_prover(&self, voter: &Voter, witness: VoteWitness) -> VotePfProof {

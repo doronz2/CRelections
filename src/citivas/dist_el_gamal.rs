@@ -1,5 +1,5 @@
 use curv::BigInt;
-use elgamal::{ElGamal,rfc7919_groups::SupportedGroups,ElGamalPP,
+use elgamal::{rfc7919_groups::SupportedGroups,ElGamalPP,
               ElGamalKeyPair,ElGamalError,ElGamalCiphertext,
               ElGamalPrivateKey,ElGamalPublicKey,ExponentElGamal};
 use curv::arithmetic::traits::{Samplable, Modulo};
@@ -49,9 +49,9 @@ impl KeyGenCommitment{
 }
 
 impl KeyProof{
-    pub fn generate_proof_for_key(sk: ElGamalPrivateKey,pk: ElGamalPublicKey, party_index:i32)-> KeyProof{
+    pub fn generate_proof_for_key(sk: ElGamalPrivateKey, pk: ElGamalPublicKey, pp: ElGamalPP, party_index:i32)-> KeyProof{
         let w = Witness{x: sk.x};
-        let dLogProof = DLogProof::prove(&w, &pk.pp);
+        let dLogProof = DLogProof::prove(&w, &pp);
         KeyProof{pk, proof: dLogProof, party_index}
     }
 
