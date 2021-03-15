@@ -75,10 +75,16 @@ pub struct CredentialShare{
 }
 
 pub struct CredetialShareOutput{
-    s_i: BigInt, //private credential share
-    S_i_tag: ElGamalCiphertext,// Public credential share
-    r_i: BigInt,// randomness for encrypting S_i_tag
-    dvrp_proof: DVRP_Proof
+    pub s_i: BigInt, //private credential share
+    pub S_i_tag: ElGamalCiphertext,// Public credential share
+    pub r_i: BigInt,// randomness for encrypting S_i_tag
+    pub dvrp_proof: DVRP_Proof
+}
+
+impl CredetialShareOutput{
+    pub fn get_dvrp_input(&self, S_i: &ElGamalCiphertext)-> DVRP_Public_Input{
+        DVRP_Public_Input{ e: &S_i, e_tag:  &self.S_i_tag}
+    }
 }
 
 impl  Registrar{

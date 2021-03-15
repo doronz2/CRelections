@@ -17,14 +17,17 @@ use rand::thread_rng;
 use crate::citivas::superviser::SystemParameters;
 use crate::citivas::superviser;
 use crate::citivas::Entity::Entity;
-use crate::citivas::zkproofs::DVRP_Proof;
+use crate::citivas::zkproofs::{DVRP_Proof, DVRP_verifier};
 use crate::citivas::registrar;
+use crate::citivas::registrar::{CredetialShareOutput, Registrar};
 
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Voter{
     designation_key_pair: ElGamalKeyPair,
     voter_number: usize,
+    KTT: ElGamalPublicKey,//public key of the tally tellers
+    private_credential: Option<BigInt>,
     pub(crate) pp:ElGamalPP
 }
 
@@ -41,7 +44,8 @@ impl Voter {
         Self {
             designation_key_pair: key_pair,
             voter_number,
-            pp
+            pp,
+            private_credential: None
         }
     }
 
@@ -80,6 +84,7 @@ impl Entity for Voter {
         &self.pp.q
     }
 
+
     fn get_generator(&self) -> &BigInt {
         &self.pp.g
     }
@@ -89,8 +94,33 @@ impl Entity for Voter {
     }
 }
 
+impl Voter {
+    fn verify_credentials(&self, cred_share: &CredetialShareOutput, S_i: &BigInt//comes from the bulletin board
+                   ) -> bool {
+        let verification_1: bool =
+            cred_share.S_i_tag ==
+                ElGamal::encrypt_from_predefined_randomness(&cred_share.s_i, &self.KTT, &cred_share.r_i).unwrap();
+        let verification_2 = DVRP_verifier(&self, &cred_share.get_dvrp_input(), &cred_share.dvrp_proof);
+        return verification_1 && verification_2
+    }
 
+    fn combine_shares( credential_private_shares: Vec<BigInt>) -> BigInt{
+        credential_private_shares.iter().fold(
+            BigInt::zero(), |sum, i | sum + i)
+    }
 
-fn verify_cred(dvrp_proof: DVRP_Proof)->bool{
+    fn construct_shares(&mut self, received_credentials: Vec<CredetialShareOutput>, S_i_vec: Vec<BigInt>) -> (){
+        let length = received_credentials.len();
+        let valid_s_i_shares = (0..length)
+            .map(|registrar_index|  received_credentials.get(registrar_index).unwrap())
+            .filter(|&cred| self.verify_credentials(cred, S_i_vec.get(registrar_index).unwrap()))
+            .map(|cred| cred.s_i)
+            .collect();
+        self.private_credential = Some(self.combine_shares(valid_s_i_shares));
+    }
 
+    fn vote(){
+
+    }
 }
+
