@@ -11,6 +11,7 @@ use std::convert::TryInto;
 use vice_city::ProofError;
 use serde::{Deserialize, Serialize};
 use crate::citivas::voter::Voter;
+use crate::citivas::Entity::Entity;
 
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
@@ -65,6 +66,26 @@ pub struct VoteWitness{
     alpha_1: BigInt,
     alpha_2: BigInt
 }
+
+
+
+
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct DVRP_Public_Input<'a> { //stands for designated-verifier reencryption proof
+    pub e: &'a ElGamalCiphertext,
+    pub e_tag: &'a ElGamalCiphertext, //El-Gamal reencyption of e
+}
+
+
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct DVRP_Proof{ //stands for designated-verifier reencryption proof
+c: BigInt,
+    w: BigInt,
+    r: BigInt,
+    u: BigInt,
+}
+
+
 
 
 pub trait ProveDLog {
@@ -210,6 +231,13 @@ impl ReencProofInput {
     }
 }
 
+impl DVRP_Public_Input{
+    pub fn create_input(e: ElGamalCiphertext, e_tag: ElGamalCiphertext)-> Self{
+        Self{e,e_tag}
+    }
+}
+
+
 impl VotePfPublicInput {
     pub fn votepf_prover(&self, voter: &Voter, witness: VoteWitness) -> VotePfProof {
         let r1 = BigInt::sample_below(&voter.pp.q);
@@ -240,3 +268,89 @@ impl VotePfProof{
             self.c == c
         }
 }
+
+
+
+
+
+pub fn DVRP_prover<E: Entity>(entity: &E, dvrp_input: &DVRP_Public_Input, eta: BigInt) -> DVRP_Proof {
+    //let d = BigInt::from(3);
+    let w = BigInt::from(2);
+    //let r = BigInt::from(5);
+    let d = BigInt::sample_below(&entity.get_q());
+    //let w = BigInt::sample_below(&entity.get_q());
+    let r = BigInt::sample_below(&entity.get_q());
+    let a = BigInt::mod_pow(&entity.get_generator(), &d, &entity.get_p());
+    let b = BigInt::mod_pow(&entity.get_pk(), &d, &entity.get_p());
+    let s = BigInt::mod_mul(&BigInt::mod_pow(&entity.get_generator(), &w, &entity.get_p()),
+                            &BigInt::mod_pow(&entity.get_pk(), &r, &entity.get_p()),
+                            &entity.get_p());
+    let c = BigInt::mod_floor(&hash_sha256::HSha256::create_hash(
+        &[&dvrp_input.e.c1, &dvrp_input.e.c2,&dvrp_input.e_tag.c1, &dvrp_input.e_tag.c2, &a, &b, &s]
+    ), &entity.get_q());
+
+    let u = (&d + &eta * (&c + &w)).mod_floor(&entity.get_q());
+    DVRP_Proof { c, w, r, u }
+}
+
+
+pub fn DVRP_verifier<E: Entity>(entity: &E, dvrp_input: &DVRP_Public_Input, dvrp_proof: &DVRP_Proof) -> bool {
+    //a′ = g^u/(x′/x)^(c+w) mod p
+    let x = dvrp_input.e.c1.clone();
+    let y = dvrp_input.e.c2.clone();
+    let x_tag = dvrp_input.e_tag.c1.clone();
+    let y_tag = dvrp_input.e_tag.c2.clone();
+    let h = entity.get_pk();
+    let a_tag: BigInt = (BigInt::mod_pow(&entity.get_generator(), &dvrp_proof.u, &entity.get_p()) *
+        BigInt::mod_inv(&div_and_pow(&x, &x_tag, &(&dvrp_proof.c + &dvrp_proof.w), &entity.get_p())
+                        , &entity.get_p())).mod_floor(&entity.get_p());
+    let nom = BigInt::mod_pow(&entity.get_generator(), &dvrp_proof.u, &entity.get_p());
+    let denom = div_and_pow(&x, &x_tag, &(&dvrp_proof.c + &dvrp_proof.w), &entity.get_p());
+    let b_tag: BigInt = (BigInt::mod_pow(&h, &dvrp_proof.u, &entity.get_p()) *
+        BigInt::mod_inv(&div_and_pow(&y, &y_tag, &(&dvrp_proof.c + &dvrp_proof.w), &entity.get_p())
+                        , &entity.get_p())).mod_floor(&entity.get_p());
+    let s_tag = BigInt::mod_mul(&BigInt::mod_pow(&entity.get_generator(), &dvrp_proof.w, &entity.get_p()),
+                                &BigInt::mod_pow(&entity.get_pk(), &dvrp_proof.r, &entity.get_p()),
+                                &entity.get_p());
+
+    let c_tag = BigInt::mod_floor(&hash_sha256::HSha256::create_hash(
+        &[&x, &y, &x_tag, &y_tag, &a_tag, &b_tag, &s_tag]
+    ), &entity.get_q());
+    println!("dvrp verifier {:#?}", [&x, &y,&x_tag, &y_tag, &a_tag, &b_tag, &s_tag]);
+
+    c_tag == dvrp_proof.c
+}
+
+pub fn fakeDVRP_prover<E: Entity>(entity: &E, dvrp_input: &DVRP_Public_Input) -> DVRP_Proof {
+    let x = &dvrp_input.e.c1;
+    let y = &dvrp_input.e.c2;
+    let x_tag = &dvrp_input.e_tag.c1;
+    let y_tag = &dvrp_input.e_tag.c2;
+    let alpha = BigInt::sample_below(&entity.get_q());
+    let beta = BigInt::sample_below(&entity.get_q());
+    let u_tilde = BigInt::sample_below(&entity.get_q());
+    let a_tilde: BigInt = (BigInt::mod_pow(&entity.get_generator(), &u_tilde, &entity.get_p()) *
+        BigInt::mod_inv(&div_and_pow(&x, &x_tag, &alpha, &entity.get_p())
+                        , &entity.get_p())).mod_floor(&entity.get_p());
+    let nom = BigInt::mod_pow(&entity.get_generator(), &u_tilde, &entity.get_p());
+    let denom = div_and_pow(&x, &x_tag, &alpha, &entity.get_p());
+    let b_tilde: BigInt = (BigInt::mod_pow(&entity.get_pk(), &u_tilde, &entity.get_p()) *
+        BigInt::mod_inv(&div_and_pow(&y, &y_tag, &alpha, &entity.get_p())
+                        , &entity.get_p())).mod_floor(&entity.get_p());
+    let s_tilde = BigInt::mod_pow(&entity.get_generator(), &beta, &entity.get_p());
+    let c_tilde = BigInt::mod_floor(&hash_sha256::HSha256::create_hash(
+        &[&x, &y, &x_tag, &y_tag, &a_tilde, &b_tilde, &s_tilde]
+    ), &entity.get_q());
+    // println!("dvrp fake prover {:#?}", [&x, &y,&x_tag, &y_tag,  &a_tilde, &b_tilde, &s_tilde]);
+    let w_tilde = (&alpha - &c_tilde).mod_floor( &entity.get_q());
+    let r_tilde = (&(&(&beta - &w_tilde) * BigInt::mod_inv(&entity.get_sk(), &entity.get_q())))
+        .mod_floor( &entity.get_q());
+    DVRP_Proof{
+        c: c_tilde,
+        w: w_tilde,
+        r: r_tilde,
+        u: u_tilde
+    }
+}
+
+

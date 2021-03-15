@@ -100,6 +100,7 @@ pub fn test_mix(){
         pp,
         O: BigInt::from(872368723)
     };
-    //mix_input.mix()
+    mix_input.mix(IN);
+
     //let mix_output = mix_input.mix();
 }

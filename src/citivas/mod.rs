@@ -1,5 +1,5 @@
 mod encryption_schemes;
-mod registrar;
+//mod registrar;
 mod tellers;
 mod test_voter;
 mod voter;
@@ -9,4 +9,12 @@ pub mod mix_network;
 mod test_encryption_schemes;
 mod test_zkproofs;
 mod superviser;
+mod test_voting_system;
+mod Entity;
+mod registrar;
 
+
+#[test]
+pub fn integration_testing(){
+
+}

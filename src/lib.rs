@@ -7,7 +7,8 @@ use curv::arithmetic::traits::Modulo;
 
 
 pub enum Error{
-    FailedMixError
+    FailedMixError,
+    EncryptionError
 }
 
 pub fn encrypt_toy(m: &BigInt, pk: &ElGamalPublicKey) -> Result<ElGamalCiphertext, ElGamalError> {

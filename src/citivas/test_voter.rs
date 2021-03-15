@@ -11,6 +11,8 @@ pub mod test_voter{
     use crate::citivas::encryption_schemes::*;
     use crate::citivas::zkproofs::*;
     use crate::citivas::voter::*;
+    use crate::citivas::Entity::Entity;
+
 
 
     #[test]
@@ -29,7 +31,7 @@ pub mod test_voter{
         let pp = ElGamalPP::generate_from_rfc7919(group_id);
      //println!("pk = {:?}, g={:?}", key_pair.pk.h, key_pair.pk.pp.g);
         let voter_number = 1;
-        let voter = Voter::create_voter(voter_number,pp.clone());
+        let voter = Voter::create(voter_number,pp.clone());
         let eta = BigInt::from(7);
         let msg = 269;
         let r = BigInt::sample_below(&pp.q);
@@ -44,8 +46,8 @@ pub mod test_voter{
             , &pp.p);
 
         let dvrp_input = DVRP_Public_Input::create_input(e,e_tag);
-        let dvrp_proof = voter.DVRP_prover(&dvrp_input,eta);
-        let dvrp_verfication_pass = voter.DVRP_verifier(&dvrp_input, &dvrp_proof);
+        let dvrp_proof = DVRP_prover(&voter, &dvrp_input,eta);
+        let dvrp_verfication_pass = DVRP_verifier(&voter, &dvrp_input, &dvrp_proof);
         assert!(dvrp_verfication_pass);
     }
 
@@ -54,7 +56,7 @@ pub mod test_voter{
         let group_id = SupportedGroups::FFDHE4096;
         let pp = ElGamalPP::generate_from_rfc7919(group_id);
         let voter_number = 1;
-        let voter = Voter::create_voter(voter_number,pp.clone());
+        let voter = Voter::create(voter_number,pp.clone());
         let eta = BigInt::from(7);
         let msg = 269;
         let r = BigInt::sample_below(&pp.q);
@@ -69,8 +71,8 @@ pub mod test_voter{
                                   , &pp.p);
 
         let dvrp_input = DVRP_Public_Input::create_input(e,e_tag);
-        let dvrp_proof = voter.fakeDVRP_prover(&dvrp_input);
-        let dvrp_verfication_pass = voter.DVRP_verifier(&dvrp_input, &dvrp_proof);
+        let dvrp_proof = fakeDVRP_prover(&voter, &dvrp_input);
+        let dvrp_verfication_pass = DVRP_verifier(&voter,&dvrp_input, &dvrp_proof);
         assert!(dvrp_verfication_pass);
     }
 }
