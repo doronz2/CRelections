@@ -11,9 +11,10 @@ use std::convert::TryInto;
 use vice_city::ProofError;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
-use crate::citivas::encryption_schemes::{reencrypt, ElGamalCipherTextAndPK};
+use crate::citivas::encryption_schemes::{reencrypt, ElGamalCipherTextAndPK, encoding_quadratic_residue};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
+use crate::citivas::superviser::NUMBER_OF_VOTERS;
 
 
 const M:usize = 8;
@@ -80,6 +81,36 @@ impl <'a>MixInput<'a>{
             }
         }
         MixOutput{ ctx_mix_list: L_R, comm_to_shuffle_list: L_C}
+    }
+
+}
+
+
+fn run_mix_network() {
+    let group_id = SupportedGroups::FFDHE4096;
+    let pp = ElGamalPP::generate_from_rfc7919(group_id);
+    let key_pair = ElGamalKeyPair::generate(&pp);
+    let pk = &key_pair.pk;
+    //creating the first list of massages
+    let enc_messages: Vec<ElGamalCiphertext> = (1..NUMBER_OF_VOTERS)
+        .map(|i| {
+            let msg = encoding_quadratic_residue(BigInt::sample_below(&pp.p),&pp);
+            ElGamal::encrypt(&msg, &pk).unwrap()
+        }).collect();
+    let tellers = create_tellers();
+    for i in (0..NUMBER_OF_TALLIES).by_ref(){
+        let teller_pk = tellers.get(i).unwrap().key_pair.pk.clone();
+        let mut l1 = MixInput{
+            ctx_list: enc_messages.iter().map(|ctx|{
+                ElGamalCipherTextAndPK{ ctx: ctx.clone(), pk}
+            }).collect(),
+            pp,
+            O: ()
+        };
+        let mut l2: MixInput;
+        let mut anonimized_list: Vec<ElGamalCiphertext>;
+        //let l1_output = tellers.get(i).unwrap().mix(l1, IN);
+
     }
 
 }

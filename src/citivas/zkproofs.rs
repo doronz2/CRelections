@@ -21,7 +21,7 @@ pub struct ReencProofInput{
  }
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
-pub struct ReencProofOutput{
+pub struct ReencProof{
     D: Vec<BigInt>,
     R: Vec<BigInt>
 }
@@ -45,11 +45,9 @@ pub struct Statement {
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct VotePfPublicInput{
-    pub(crate) a1: BigInt,
-    pub(crate) a2: BigInt,
-    pub(crate) b1: BigInt,
-    pub(crate) b2: BigInt,
-    pub(crate) ctx: BigInt
+    pub(crate) encrypted_credential: ElGamalCiphertext,
+    pub(crate) encrypted_choice: ElGamalCiphertext,
+    pub eid: BigInt //election identifier,
 }
 
 
@@ -117,15 +115,28 @@ impl VotePfPublicInput{
     pub fn generateRandomInput(pp: &ElGamalPP, witness: &VoteWitness)-> Self{
         let  a1: BigInt = BigInt::mod_pow(&pp.g, &witness.alpha_1, &pp.p);
         let  a2: BigInt = BigInt::mod_pow(&pp.g, &witness.alpha_2, &pp.p);
+        let e1 = ElGamalCiphertext{
+            c1: a1,
+            c2: a2,
+            pp: pp.clone()
+        };
         let  b1: BigInt = BigInt::sample_below(&pp.p);
         let  b2: BigInt = BigInt::sample_below(&pp.p);
+        let e2 = ElGamalCiphertext{
+            c1: b1,
+            c2: b2,
+            pp: pp.clone()
+        };
         let  ctx: BigInt = BigInt::sample_below(&pp.p);
-        Self{a1,a2,b1,b2, ctx}
+        Self{
+            encrypted_credential: e1,
+            encrypted_choice: e2,
+            eid: ctx}
     }
 }
 
 
-// This function proves the there is some c_t (for a private t) in c_1,...,c_l that is
+// The following function proves the there is some c_t (for a private t) in c_1,...,c_l that is
 // an encryption of some cipher text c=(u,v)
 // The following function is an attempt to implement [1] with Fiat-Shamir heuristic
 // L is the number of candidate of encryption and t stands for index of the real encrypted message.
@@ -133,14 +144,14 @@ impl VotePfPublicInput{
 // [1]: Hirt, Sako: Efficient receipt-free voting based on homomorphic encryption.
 
 impl ReencProofInput {
-    pub fn reenc_1_out_of_L_prover(&self, pp: &ElGamalPP, pk: &ElGamalPublicKey, t: usize, eta: BigInt, L: usize) -> ReencProofOutput {
+    pub fn reenc_1_out_of_L_prove(&self, pp: &ElGamalPP, pk: &ElGamalPublicKey, chosen_ciphertext_index: usize, eta: BigInt, L: usize) -> ReencProof {
         if self.C_list.len() != L {
             panic!("Size of the list doesn't match the specified list length L")
         }
         if *pp != pk.pp {
             panic!("mismatch pp");
         }
-        if t >= L {
+        if chosen_ciphertext_index >= L {
             panic! {"t must be smaller than the size of the list"}
         }
         let mut list_d_i = Vec::with_capacity(L);
@@ -183,16 +194,18 @@ impl ReencProofInput {
         let c = BigInt::mod_floor(&hash_sha256::HSha256::create_hash(
             &E)
                                   , &pp.q);
-        let w = BigInt::mod_floor(&(&eta * &list_d_i[t] + &list_r_i[t]), &pp.q);
+        let w = BigInt::mod_floor(&(&eta * &list_d_i[chosen_ciphertext_index]
+            + &list_r_i[chosen_ciphertext_index]), &pp.q);
         let sum: BigInt = list_d_i.iter().fold(BigInt::zero(), |a, b| a + b).mod_floor(&pp.q);
-        let tmp = (sum - &list_d_i[t]).mod_floor(&pp.q);
-        list_d_i[t] = BigInt::mod_floor(&(c - tmp)
+        let tmp = (sum - &list_d_i[chosen_ciphertext_index]).mod_floor(&pp.q);
+        list_d_i[chosen_ciphertext_index] = BigInt::mod_floor(&(c - tmp)
                                         , &pp.q);
-        list_r_i[t] = BigInt::mod_floor(&(&w - &eta * &list_d_i[t]), &pp.q);
-        ReencProofOutput { D: list_d_i.try_into().unwrap(), R: list_r_i.try_into().unwrap() }
+        list_r_i[chosen_ciphertext_index] =
+            BigInt::mod_floor(&(&w - &eta * &list_d_i[chosen_ciphertext_index]), &pp.q);
+        ReencProof { D: list_d_i.try_into().unwrap(), R: list_r_i.try_into().unwrap() }
     }
 
-    pub fn reenc_1_out_of_L_verifier(&self, pp: &ElGamalPP, pk: &ElGamalPublicKey, proof: ReencProofOutput, L: usize) -> bool {
+    pub fn reenc_1_out_of_L_verifier(&self, pp: &ElGamalPP, pk: &ElGamalPublicKey, proof: ReencProof, L: usize) -> bool {
         let mut list_a_i = Vec::with_capacity(L);
         let mut list_b_i = Vec::with_capacity(L);
 
@@ -232,7 +245,7 @@ impl ReencProofInput {
 }
 
 impl DVRP_Public_Input{
-    pub fn create_input(e: ElGamalCiphertext, e_tag: ElGamalCiphertext)-> Self{
+    pub fn create_input(e: &ElGamalCiphertext, e_tag: &ElGamalCiphertext)-> Self{
         Self{e,e_tag}
     }
 }
@@ -242,7 +255,7 @@ impl VotePfPublicInput {
     pub fn votepf_prover(&self, voter: &Voter, witness: VoteWitness) -> VotePfProof {
         let r1 = BigInt::sample_below(&voter.pp.q);
         let r2 = BigInt::sample_below(&voter.pp.q);
-        let mut E = vec![&voter.pp.g, &self.a1, &self.b1, &self.a2, &self.b2, &self.ctx];
+        let mut E = vec![&voter.pp.g, &self.encrypted_credential.c1, &self.encrypted_credential.c2, &self.encrypted_choice.c1, &self.encrypted_choice.c2, &self.eid];
         let pre_hash_1 = BigInt::mod_pow(&voter.pp.g, &r1, &voter.pp.p);
         let pre_hash_2 = BigInt::mod_pow(&voter.pp.g, &r2, &voter.pp.p);
         E.push(&pre_hash_1);
@@ -256,7 +269,7 @@ impl VotePfPublicInput {
 }
 impl VotePfProof{
         pub fn votepf_verifier(&self, input: &VotePfPublicInput, voter: &Voter) -> bool {
-            let mut E = vec![&voter.pp.g, &input.a1, &input.b1, &input.a2, &input.b2, &input.ctx];
+            let mut E = vec![&voter.pp.g, &input.encrypted_credential.c1, &input.encrypted_credential.c2, &input.encrypted_choice.c1, &input.encrypted_choice.c2, &input.eid];
             let pre_hash_1 = (BigInt::mod_pow(&voter.pp.g, &self.s1, &voter.pp.p) *
                 BigInt::mod_pow(&input.a1, &self.c, &voter.pp.p)).mod_floor(&voter.pp.p);
             let pre_hash_2 = (BigInt::mod_pow(&voter.pp.g, &self.s2, &voter.pp.p) *

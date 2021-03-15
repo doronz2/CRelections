@@ -14,10 +14,10 @@ use std::str::FromStr;
 use crate::citivas::encryption_schemes::{reencrypt, ElGamalCipherTextAndPK};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
-use crate::citivas::superviser::SystemParameters;
+use crate::citivas::superviser::{SystemParameters, NUMBER_OF_CANDIDATES};
 use crate::citivas::superviser;
 use crate::citivas::Entity::Entity;
-use crate::citivas::zkproofs::{DVRP_Proof, DVRP_verifier};
+use crate::citivas::zkproofs::*;
 use crate::citivas::registrar;
 use crate::citivas::registrar::{CredetialShareOutput, Registrar};
 
@@ -28,7 +28,17 @@ pub struct Voter{
     voter_number: usize,
     KTT: ElGamalPublicKey,//public key of the tally tellers
     private_credential: Option<BigInt>,
-    pub(crate) pp:ElGamalPP
+    pub(crate) pp:ElGamalPP,
+    chosen_candidate: Option<i8> //the vote itself
+}
+
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct Vote{
+    es: ElGamalCiphertext,//encryption of the private credential
+    ev: ElGamalPublicKey,//reencryption of the ciphertext, i.e., c_i is the encryption of the vote and ev is an encryption of c_i
+    pw: VotePfProof,//a proof that shows that the voter knows the private credential and the vote
+    // (This defends against an adversary who attempts to post functions of previously cast votes.)
+    pk: ReencProof,//a proof that shows ev is an encryption of one cipher (c_i) in the list of L candidates
 }
 
 //a technical function that computes (x/x')^c mod p
@@ -119,8 +129,30 @@ impl Voter {
         self.private_credential = Some(self.combine_shares(valid_s_i_shares));
     }
 
-    fn vote(){
+    fn set_vote(&self, candidate: i8){
+        &self.vote = &Some(candidate);
+    }
 
+    fn vote(&self, encrypted_candidate_list: Vec<ElGamalCiphertext>, chosen_candidate: usize, eid: usize)-> Vote{
+        let ev = ElGamal::encrypt(&self.private_credential.unwrap(), &self.KTT).unwrap();//encryption of the credential
+        let random_nonce = BigInt::sample_below(&self.get_q());
+        let es =reencrypt(&ElGamalCipherTextAndPK { 
+            ctx: encrypted_candidate_list.get(chosen_candidate).unwrap().clone(),
+            pk: &self.KTT
+        },
+            &random_nonce
+        );//reencryption of the vote with the tellers public key
+        let reenc_proof_input = ReencProofInput{ C_list: encrypted_candidate_list, c: es.clone()};
+        let pw = reenc_proof_input.reenc_1_out_of_L_prove(
+            &self.get_pp(), &self.get_key_pair().pk, chosen_candidate,
+            random_nonce, NUMBER_OF_CANDIDATES);
+        let vote_pf_input = VotePfPublicInput{
+            encrypted_credential: ev,
+            encrypted_choice: es,
+            eid: BigInt::from(eid)
+        };
+        let witness // continue
+        let pk = vote_pf_input.votepf_prover()
     }
 }
 
