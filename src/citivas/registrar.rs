@@ -16,6 +16,7 @@ use crate::citivas::encryption_schemes::{reencrypt, encoding_quadratic_residue, 
 use crate::citivas::tellers::*;
 use crate::citivas::Entity::Entity;
 use crate::citivas::zkproofs::{DVRP_prover, DVRP_Public_Input, DVRP_Proof};
+use crate::macros;
 
 pub struct RegistrationTeller{
     KTT: BigInt, // Tabulate tellers public keys (yes not registration tellers!)
@@ -53,6 +54,10 @@ impl Entity for Registrar{
         &self.pp.q
     }
 
+    fn get_tally_pk(&self) -> &ElGamalPublicKey {
+        &self.KTT
+    }
+
     fn get_generator(&self) -> &BigInt {
         &self.pp.g
     }
@@ -74,6 +79,7 @@ pub struct CredentialShare{
     eta: BigInt// randomness for reencryption to obtain S_i
 }
 
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct CredetialShareOutput{
     pub s_i: BigInt, //private credential share
     pub S_i_tag: ElGamalCiphertext,// Public credential share
@@ -82,7 +88,7 @@ pub struct CredetialShareOutput{
 }
 
 impl CredetialShareOutput{
-    pub fn get_dvrp_input(&self, S_i: &ElGamalCiphertext)-> DVRP_Public_Input{
+    pub fn get_dvrp_input<'a>(&'a self, S_i: &'a ElGamalCiphertext)-> DVRP_Public_Input<'a>{
         DVRP_Public_Input{ e: &S_i, e_tag:  &self.S_i_tag}
     }
 }
@@ -94,8 +100,9 @@ impl  Registrar{
         let r_i = BigInt::sample_below(&pp.q);
         let S_i_tag = ElGamal::encrypt_from_predefined_randomness(&s_i, &self.KTT, &r_i).unwrap();
         let eta = BigInt::sample_below(&pp.q);
+        let random_nonce = sample_from!(&pp.q);
         let S_i = reencrypt(&ElGamalCipherTextAndPK { ctx: S_i_tag.clone(), pk: &self.KTT }
-                            , &temp_rand_for_reencryption);
+                            , &random_nonce);
         &self.cred_vec.push(CredentialShare {  s_i, S_i, S_i_tag, r_i, eta });
     }
 
@@ -103,7 +110,7 @@ impl  Registrar{
     pub fn publish_credential_with_proof(&self, voter_index: usize)-> CredetialShareOutput{
         let cred_share = &self.cred_vec.get(voter_index).unwrap();
         let dvrp_input = &DVRP_Public_Input{ e: &cred_share.S_i_tag, e_tag: &cred_share.S_i };
-        let proof = DVRP_prover(&self, dvrp_input, cred_share.eta.clone());
+        let proof = DVRP_prover(self, dvrp_input, cred_share.eta.clone());
         CredetialShareOutput{
             s_i: cred_share.s_i.clone(),
             S_i_tag: cred_share.S_i_tag.clone(),

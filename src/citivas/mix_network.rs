@@ -85,7 +85,7 @@ impl <'a>MixInput<'a>{
 
 }
 
-
+/*
 fn run_mix_network() {
     let group_id = SupportedGroups::FFDHE4096;
     let pp = ElGamalPP::generate_from_rfc7919(group_id);
@@ -112,8 +112,9 @@ fn run_mix_network() {
         //let l1_output = tellers.get(i).unwrap().mix(l1, IN);
 
     }
-
 }
+*/
+
 
 
 #[test]

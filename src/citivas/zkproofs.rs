@@ -61,14 +61,14 @@ pub struct VotePfProof{
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct VoteWitness{
-    alpha_1: BigInt,
-    alpha_2: BigInt
+    pub(crate) alpha_1: BigInt,
+    pub(crate) alpha_2: BigInt
 }
 
 
 
 
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct DVRP_Public_Input<'a> { //stands for designated-verifier reencryption proof
     pub e: &'a ElGamalCiphertext,
     pub e_tag: &'a ElGamalCiphertext, //El-Gamal reencyption of e
@@ -244,8 +244,8 @@ impl ReencProofInput {
     }
 }
 
-impl DVRP_Public_Input{
-    pub fn create_input(e: &ElGamalCiphertext, e_tag: &ElGamalCiphertext)-> Self{
+impl <'a> DVRP_Public_Input<'a>{
+    pub fn create_input(e: &'a ElGamalCiphertext, e_tag: &'a ElGamalCiphertext)-> Self{
         Self{e,e_tag}
     }
 }
@@ -271,9 +271,9 @@ impl VotePfProof{
         pub fn votepf_verifier(&self, input: &VotePfPublicInput, voter: &Voter) -> bool {
             let mut E = vec![&voter.pp.g, &input.encrypted_credential.c1, &input.encrypted_credential.c2, &input.encrypted_choice.c1, &input.encrypted_choice.c2, &input.eid];
             let pre_hash_1 = (BigInt::mod_pow(&voter.pp.g, &self.s1, &voter.pp.p) *
-                BigInt::mod_pow(&input.a1, &self.c, &voter.pp.p)).mod_floor(&voter.pp.p);
+                BigInt::mod_pow(&input.encrypted_credential.c1, &self.c, &voter.pp.p)).mod_floor(&voter.pp.p);
             let pre_hash_2 = (BigInt::mod_pow(&voter.pp.g, &self.s2, &voter.pp.p) *
-                BigInt::mod_pow(&input.a2, &self.c, &voter.pp.p)).mod_floor(&voter.pp.p);
+                BigInt::mod_pow(&input.encrypted_choice.c1, &self.c, &voter.pp.p)).mod_floor(&voter.pp.p);
             E.push(&pre_hash_1);
             E.push(&pre_hash_2);
          //   println!("E = {:#?}", E);

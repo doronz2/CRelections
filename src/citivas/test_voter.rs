@@ -12,6 +12,7 @@ pub mod test_voter{
     use crate::citivas::zkproofs::*;
     use crate::citivas::voter::*;
     use crate::citivas::Entity::Entity;
+    use crate::citivas::superviser;
 
 
 
@@ -31,7 +32,7 @@ pub mod test_voter{
         let pp = ElGamalPP::generate_from_rfc7919(group_id);
      //println!("pk = {:?}, g={:?}", key_pair.pk.h, key_pair.pk.pp.g);
         let voter_number = 1;
-        let voter = Voter::create(voter_number,pp.clone());
+        let voter = Voter::simple_create(voter_number,pp.clone());
         let eta = BigInt::from(7);
         let msg = 269;
         let r = BigInt::sample_below(&pp.q);
@@ -45,7 +46,7 @@ pub mod test_voter{
                                   &e_tag.clone().c2.mod_floor(&pp.p)
             , &pp.p);
 
-        let dvrp_input = DVRP_Public_Input::create_input(e,e_tag);
+        let dvrp_input = DVRP_Public_Input::create_input(&e,&e_tag);
         let dvrp_proof = DVRP_prover(&voter, &dvrp_input,eta);
         let dvrp_verfication_pass = DVRP_verifier(&voter, &dvrp_input, &dvrp_proof);
         assert!(dvrp_verfication_pass);
@@ -56,7 +57,7 @@ pub mod test_voter{
         let group_id = SupportedGroups::FFDHE4096;
         let pp = ElGamalPP::generate_from_rfc7919(group_id);
         let voter_number = 1;
-        let voter = Voter::create(voter_number,pp.clone());
+        let voter = Voter::simple_create(voter_number,pp.clone());
         let eta = BigInt::from(7);
         let msg = 269;
         let r = BigInt::sample_below(&pp.q);
@@ -70,7 +71,7 @@ pub mod test_voter{
                                   &e_tag.clone().c2.mod_floor(&pp.p)
                                   , &pp.p);
 
-        let dvrp_input = DVRP_Public_Input::create_input(e,e_tag);
+        let dvrp_input = DVRP_Public_Input::create_input(&e,&e_tag);
         let dvrp_proof = fakeDVRP_prover(&voter, &dvrp_input);
         let dvrp_verfication_pass = DVRP_verifier(&voter,&dvrp_input, &dvrp_proof);
         assert!(dvrp_verfication_pass);

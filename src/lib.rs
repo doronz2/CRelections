@@ -1,3 +1,13 @@
+
+#[macro_use]
+pub mod macros{
+    macro_rules! sample_from{
+        ($pp: expr) => {
+        BigInt::sample_below($pp);
+        };
+    }
+}
+
 pub mod citivas;
 pub use elgamal::{ElGamal,rfc7919_groups::SupportedGroups,ElGamalPP,
 ElGamalKeyPair,ElGamalError,ElGamalCiphertext,

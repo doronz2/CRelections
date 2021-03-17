@@ -21,7 +21,7 @@ pub mod test_zk_proofs {
         let witness = VoteWitness::generate_random_witness(&pp);
         let inputPF = VotePfPublicInput::generateRandomInput(&pp, &witness);
         let voter_number = 1;
-        let voter = Voter::create(voter_number,pp.clone());
+        let voter = Voter::simple_create(voter_number,pp.clone());
         let proof  = inputPF.votepf_prover(&voter, witness);
         let verification = proof.votepf_verifier(&inputPF,&voter);
         assert!(verification);
@@ -44,7 +44,7 @@ pub mod test_zk_proofs {
         let cipher = ElGamalCipherTextAndPK{ ctx: ctx.clone(), pk: &key_pair.pk };
         C_list[t] = reencrypt(&cipher,&enc_key);
         let input = ReencProofInput{ C_list, c: ctx.clone() };
-        let proof = input.reenc_1_out_of_L_prover(&pp,&key_pair.pk, t, enc_key, L);
+        let proof = input.reenc_1_out_of_L_prove(&pp,&key_pair.pk, t, enc_key, L);
         let verification = input.reenc_1_out_of_L_verifier(&pp,&key_pair.pk, proof, L);
         assert!(verification);
     }
