@@ -117,7 +117,6 @@ fn run_mix_network() {
 
 
 
-#[test]
 pub fn test_mix(){
     let group_id = SupportedGroups::FFDHE4096;
     let pp = ElGamalPP::generate_from_rfc7919(group_id);

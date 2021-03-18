@@ -38,9 +38,9 @@ pub mod test_voter{
         let r = BigInt::sample_below(&pp.q);
         let encoded_msg = encoding_quadratic_residue(BigInt::from(17), &pp);
         let e = ElGamal::encrypt_from_predefined_randomness(
-            &encoded_msg, &voter.get_key_pair().pk,&r
+            &encoded_msg, &voter.designation_key_pair.pk,&r
         ).unwrap();
-        let e_with_pk = ElGamalCipherTextAndPK{ ctx:e.clone() , pk: &voter.get_key_pair().pk};//need to get read of the struct  ElGamalCipherTextAndPK and create voter with pk
+        let e_with_pk = ElGamalCipherTextAndPK{ ctx:e.clone() , pk: &voter.designation_key_pair.pk};//need to get read of the struct  ElGamalCipherTextAndPK and create voter with pk
         let e_tag = reencrypt(&e_with_pk, &eta);
     let div = BigInt::mod_mul(&BigInt::mod_inv(&e.c2,&pp.p),
                                   &e_tag.clone().c2.mod_floor(&pp.p)
@@ -63,9 +63,9 @@ pub mod test_voter{
         let r = BigInt::sample_below(&pp.q);
         let encoded_msg = encoding_quadratic_residue(BigInt::from(17), &pp);
         let e = ElGamal::encrypt_from_predefined_randomness(
-            &encoded_msg, &voter.get_key_pair().pk,&r
+            &encoded_msg, &voter.designation_key_pair.pk,&r
         ).unwrap();
-        let e_with_pk = ElGamalCipherTextAndPK{ ctx:e.clone() , pk: &voter.get_key_pair().pk};//need to get read of the struct  ElGamalCipherTextAndPK and create voter with pk
+        let e_with_pk = ElGamalCipherTextAndPK{ ctx:e.clone() , pk: &voter.designation_key_pair.pk};//need to get read of the struct  ElGamalCipherTextAndPK and create voter with pk
         let e_tag = reencrypt(&e_with_pk, &eta);
         let div = BigInt::mod_mul(&BigInt::mod_inv(&e.c2,&pp.p),
                                   &e_tag.clone().c2.mod_floor(&pp.p)

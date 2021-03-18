@@ -9,7 +9,6 @@ pub mod mix_network;
 mod test_encryption_schemes;
 mod test_zkproofs;
 mod superviser;
-mod test_voting_system;
 mod Entity;
 mod registrar;
 

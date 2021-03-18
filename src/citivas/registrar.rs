@@ -11,12 +11,16 @@ use std::convert::TryInto;
 use vice_city::ProofError;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
-use crate::Error;
+use crate::{Error, generate_pp_toy, encrypt_toy, generate_keys_toy};
 use crate::citivas::encryption_schemes::{reencrypt, encoding_quadratic_residue, ElGamalCipherTextAndPK};
 use crate::citivas::tellers::*;
 use crate::citivas::Entity::Entity;
 use crate::citivas::zkproofs::{DVRP_prover, DVRP_Public_Input, DVRP_Proof};
 use crate::macros;
+use crate::citivas::superviser;
+use crate::citivas::superviser::SystemParameters;
+use crate::citivas::zkproofs::*;
+
 
 pub struct RegistrationTeller{
     KTT: BigInt, // Tabulate tellers public keys (yes not registration tellers!)
@@ -26,7 +30,7 @@ pub struct RegistrationTeller{
 pub struct Registrar{
     registrar_index: usize,
     pp:ElGamalPP,
-    key_pair: ElGamalKeyPair,
+    //key_pair: ElGamalKeyPair,
     num_of_voters: usize,
     KTT: ElGamalPublicKey,//PK of the tellers (tally tellers)
     cred_vec: Vec<CredentialShare>
@@ -38,12 +42,9 @@ impl Entity for Registrar{
     }
 
     fn get_pk(&self) -> &BigInt {
-        &self.key_pair.pk.h
+        &self.KTT.h
     }
 
-    fn get_sk(&self) -> &BigInt {
-        &self.key_pair.sk.x
-    }
 
     fn get_p(&self) -> &BigInt {
         &self.pp.p
@@ -62,13 +63,40 @@ impl Entity for Registrar{
         &self.pp.g
     }
 
-    fn get_key_pair(&self) -> &ElGamalKeyPair {
-        &self.key_pair
-    }
+
 }
 
 
+impl Registrar{
+    pub fn create(registrar_index: usize,
+                  pp: &ElGamalPP,
+                  num_of_voters: usize,
+                  KTT: ElGamalPublicKey)->Self{//PK of the tellers (tally tellers)
+    let key_pair = ElGamalKeyPair::generate(&pp);
+        Self{
+            registrar_index,
+            pp: pp.clone(),
+            //key_pair,
+            num_of_voters,
+            KTT,
+            cred_vec: vec![]
+        }
+    }
 
+    pub fn create_toy(registrar_index: usize,
+                  pp: &ElGamalPP,
+                  num_of_voters: usize,
+                  KTT: ElGamalPublicKey)->Self{//PK of the tellers (tally tellers)
+        Self{
+            registrar_index,
+            pp: pp.clone(),
+            //key_pair,
+            num_of_voters,
+            KTT,
+            cred_vec: vec![]
+        }
+    }
+}
 
 
 pub struct CredentialShare{
@@ -94,22 +122,23 @@ impl CredetialShareOutput{
 }
 
 impl  Registrar{
-    pub fn create_credential_share(&mut self) -> (){
+    pub fn create_credential_share(&self) ->  CredentialShare{
         let pp = &self.pp.clone();
         let s_i = BigInt::sample_below(&pp.q);
         let r_i = BigInt::sample_below(&pp.q);
         let S_i_tag = ElGamal::encrypt_from_predefined_randomness(&s_i, &self.KTT, &r_i).unwrap();
         let eta = BigInt::sample_below(&pp.q);
-        let random_nonce = sample_from!(&pp.q);
         let S_i = reencrypt(&ElGamalCipherTextAndPK { ctx: S_i_tag.clone(), pk: &self.KTT }
-                            , &random_nonce);
-        &self.cred_vec.push(CredentialShare {  s_i, S_i, S_i_tag, r_i, eta });
+                            , &eta);
+       CredentialShare {  s_i, S_i, S_i_tag, r_i, eta }
     }
 
 
-    pub fn publish_credential_with_proof(&self, voter_index: usize)-> CredetialShareOutput{
-        let cred_share = &self.cred_vec.get(voter_index).unwrap();
-        let dvrp_input = &DVRP_Public_Input{ e: &cred_share.S_i_tag, e_tag: &cred_share.S_i };
+
+//publish credential share (s_i, S'_i, r_i) and a DVRP proof that S_i is reenc of S_i
+    pub fn publish_credential_with_proof(&self, cred_share: &CredentialShare, dvrp_input: &DVRP_Public_Input)-> CredetialShareOutput{
+      //  let cred_share = &self.cred_vec.get(voter_index).unwrap();
+       // let dvrp_input = &DVRP_Public_Input{ e: &cred_share.S_i_tag, e_tag: &cred_share.S_i };
         let proof = DVRP_prover(self, dvrp_input, cred_share.eta.clone());
         CredetialShareOutput{
             s_i: cred_share.s_i.clone(),
@@ -119,4 +148,21 @@ impl  Registrar{
         }
     }
 
+}
+
+
+#[test]
+//This checks using DVRP that S’_i is a reencryption of S_i using DVRP
+pub fn check_credential_proof(){
+    let group_id = SupportedGroups::FFDHE4096;
+    let pp = &ElGamalPP::generate_from_rfc7919(group_id);
+    let supervisor = SystemParameters::create_supervisor(&pp);
+    let registrar = Registrar::create(0, pp, supervisor.num_of_voters, supervisor.KTT);
+    let share = registrar.create_credential_share();
+    let dvrp_input = DVRP_Public_Input::create_input(&share.S_i_tag,&share.S_i);
+    let cred_share_output = registrar.publish_credential_with_proof(&share,&dvrp_input);
+    let check =  DVRP_verifier(
+        &registrar, &dvrp_input, &cred_share_output.dvrp_proof
+    );
+    assert!(check)
 }

@@ -13,6 +13,7 @@ pub mod test_zk_proofs {
     use crate::citivas::voter::*;
     use crate::{generate_keys_toy, encrypt_toy, generate_pp_toy};
     use crate::citivas::Entity::Entity;
+    use crate::citivas::superviser::*;
 
     #[test]
     fn test_votePF(){
@@ -21,7 +22,8 @@ pub mod test_zk_proofs {
         let witness = VoteWitness::generate_random_witness(&pp);
         let inputPF = VotePfPublicInput::generateRandomInput(&pp, &witness);
         let voter_number = 1;
-        let voter = Voter::simple_create(voter_number,pp.clone());
+        let params = SystemParameters::create_supervisor(&pp);
+        let voter = Voter::create(voter_number,params);
         let proof  = inputPF.votepf_prover(&voter, witness);
         let verification = proof.votepf_verifier(&inputPF,&voter);
         assert!(verification);

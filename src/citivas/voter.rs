@@ -24,20 +24,22 @@ use crate::citivas::registrar::{CredetialShareOutput, Registrar};
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Voter{
-    designation_key_pair: ElGamalKeyPair,
+    pub designation_key_pair: ElGamalKeyPair,
     voter_number: usize,
     KTT: ElGamalPublicKey,//public key of the tally tellers
     private_credential: Option<BigInt>,
     pub(crate) pp:ElGamalPP,
     chosen_candidate: Option<i8>, //the vote itself
-    nonce_for_candidate_encryption: BigInt
+    nonce_for_candidate_encryption: BigInt,
+    eid: i32,
+    encrypted_candidate_list: Vec<ElGamalCiphertext>
 }
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Vote{
     es: ElGamalCiphertext,//encryption of the private credential
     ev: ElGamalCiphertext,//reencryption of the ciphertext, i.e., c_i is the encryption of the vote and ev is an encryption of c_i
-    pk: VotePfProof,//a proof that shows that the voter knows the private credential and the vote
+    pf: VotePfProof,//a proof that shows that the voter knows the private credential and the vote
     // (This defends against an adversary who attempts to post functions of previously cast votes.)
     pw: ReencProof,//a proof that shows ev is an encryption of one cipher (c_i) in the list of L candidates
 }
@@ -61,7 +63,9 @@ impl Voter {
             private_credential: None,
             nonce_for_candidate_encryption: BigInt::zero(),
             KTT: ElGamalPublicKey{ pp: pp.clone(), h:BigInt::zero() },
-            chosen_candidate: None
+            chosen_candidate: None,
+            eid: 0,
+            encrypted_candidate_list: Vec::new()
         }
 
     }
@@ -78,7 +82,9 @@ impl Voter {
             private_credential: None,
             nonce_for_candidate_encryption: params.nonce_for_candidate_encryption,
             KTT: params.KTT,
-            chosen_candidate: None
+            chosen_candidate: None,
+            eid: params.eid,
+            encrypted_candidate_list: params.encrypted_candidate_list
         }
     }
 
@@ -94,7 +100,9 @@ impl Voter {
             private_credential: None,
             nonce_for_candidate_encryption: params.nonce_for_candidate_encryption,
             KTT: params.KTT,
-            chosen_candidate: None
+            chosen_candidate: None,
+            eid: params.eid,
+            encrypted_candidate_list: vec![]
         }
     }
 }
@@ -110,10 +118,11 @@ impl Entity for Voter {
         &self.designation_key_pair.pk.h
     }
 
+    /*
     fn get_sk(&self) -> &BigInt {
         &self.designation_key_pair.sk.x
     }
-
+*/
     fn get_p(&self) -> &BigInt {
         &self.pp.p
     }
@@ -130,9 +139,6 @@ impl Entity for Voter {
         &self.pp.g
     }
 
-    fn get_key_pair(&self) -> &ElGamalKeyPair{
-        &self.designation_key_pair
-    }
 }
 
 impl Voter{
@@ -173,7 +179,7 @@ impl Voter{
 
 
 
-    fn vote(&self, encrypted_candidate_list: Vec<ElGamalCiphertext>, chosen_candidate: usize, eid: usize)-> Vote{
+    fn vote(&self, encrypted_candidate_list: Vec<ElGamalCiphertext>, chosen_candidate: usize)-> Vote{
         let nonce_for_encrypting_credentials = sample_from!(&self.get_q());
         let ev = ElGamal::encrypt_from_predefined_randomness(
             &self.private_credential.as_ref().unwrap(), &self.KTT, &nonce_for_encrypting_credentials)
@@ -187,16 +193,34 @@ impl Voter{
         );//reencryption of the vote with the tellers public key
         let reenc_proof_input = ReencProofInput{ C_list: encrypted_candidate_list, c: es.clone()};
         let pw = reenc_proof_input.reenc_1_out_of_L_prove(
-            &self.get_pp(), &self.get_key_pair().pk, chosen_candidate,
+            &self.get_pp(), &self.designation_key_pair.pk, chosen_candidate,
             nonce_for_reecryption.clone(), NUMBER_OF_CANDIDATES);
         let vote_pf_input = VotePfPublicInput{
             encrypted_credential: ev.clone(),
             encrypted_choice: es.clone(),
-            eid: BigInt::from(eid as i32)
+            eid: BigInt::from(self.eid as i32)
         };
         let witness = VoteWitness{ alpha_1: nonce_for_encrypting_credentials, alpha_2: &self.nonce_for_candidate_encryption + nonce_for_reecryption};
-        let pk = vote_pf_input.votepf_prover(&self, witness);
-        Vote{ev, es, pk, pw}
+        let pf = vote_pf_input.votepf_prover(&self, witness);
+        Vote{ev, es, pf, pw}
+    }
+
+    // Verify the proofs of votepf and reencryption
+    // move function to tallies
+    pub fn check_votes(voter: Voter, vote: Vote, eid: usize) -> bool{
+        let vote_pf_input = VotePfPublicInput{
+            encrypted_credential: vote.ev.clone(),
+            encrypted_choice: vote.es.clone(),
+            eid: BigInt::from(eid as i32)
+        };
+        let check_1 = vote.pf.votepf_verifier(&vote_pf_input,&voter);
+        assert!(check_1);
+        let reenc_proof_input = ReencProofInput{ C_list: voter.encrypted_candidate_list.clone(), c: vote.es.clone()};
+        let check_2 = reenc_proof_input.reenc_1_out_of_L_verifier(
+            &voter.get_pp(), &voter.designation_key_pair.pk,vote.pw,NUMBER_OF_CANDIDATES
+        );
+        assert!(check_2);
+        check_1 && check_2
     }
 }
 

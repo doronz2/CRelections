@@ -38,7 +38,7 @@ pub fn encrypt_toy(m: &BigInt, pk: &ElGamalPublicKey) -> Result<ElGamalCiphertex
 }
 
 pub fn generate_keys_toy(pp: &ElGamalPP) -> ElGamalKeyPair {
-    let x = BigInt::from(7);
+    let x = BigInt::from(3);
     let h = BigInt::mod_pow(&pp.g, &x, &pp.p);
     let pk = ElGamalPublicKey { pp: pp.clone(), h };
     let sk = ElGamalPrivateKey { pp: pp.clone(), x };
