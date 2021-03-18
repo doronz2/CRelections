@@ -15,22 +15,16 @@ pub mod test_encryption {
     fn test_basic_el_gamal() {
         let group_id = SupportedGroups::FFDHE4096;
         let pp = ElGamalPP::generate_from_rfc7919(group_id);
-
         let alice_key_pair = ElGamalKeyPair::generate(&pp);
-
         let msg = BigInt::from(987);
-
         let cipher = elgamal::ElGamal::encrypt(&msg, &alice_key_pair.pk).unwrap();
         let plain = elgamal::ElGamal::decrypt(&cipher, &alice_key_pair.sk).unwrap();
-        println!("the plaintext is {}", plain);
-
         let factor1 = elgamal::ElGamal::
         encrypt(&BigInt::from(5), &alice_key_pair.pk).unwrap();
         let factor2 = elgamal::ElGamal::
         encrypt(&BigInt::from(3), &alice_key_pair.pk).unwrap();
         let cipher_prod = ElGamal::mul(&factor1, &factor2).unwrap();
         let homomorphic_result = ElGamal::decrypt(&cipher_prod, &alice_key_pair.sk).unwrap();
-        println!(" the plaintext result after applying homomorphic multiplication is {}", homomorphic_result);
         assert_eq!(BigInt::from(15), homomorphic_result);
     }
 
@@ -61,12 +55,10 @@ pub mod test_encryption {
         let key_pair = ElGamalKeyPair::generate(&pp);
         for msg in 1..40 {
             let encoded_msg = encoding_quadratic_residue(BigInt::from(msg), &pp);
-            println!("{}", encoded_msg);
         }
         let encoded_msg = encoding_quadratic_residue(BigInt::from(17), &pp);
         let encrypted_msg = NonMellableElgamal::encrypt(&encoded_msg, &key_pair.pk).unwrap();
         let decrypted_msg = NonMellableElgamal::decrypt(encrypted_msg, &key_pair.sk).unwrap();
-        println!("Decrypted msg {}", &decrypted_msg);
         assert_eq!(encoded_msg, decrypted_msg);
     }
 
@@ -80,7 +72,6 @@ pub mod test_encryption {
         let credential_nonce = BigInt::sample_below(&pp.q);
         let encoded_msg = encoding_quadratic_residue(BigInt::from(17), &pp);
         let encrypted_credential = NonMellableElgamal::encrypt_credential(&encoded_msg,&key_pair.pk,&credential_nonce,rid.clone(),vid.clone()).unwrap();
-        println!("enc cred: {:#?}", encrypted_credential);
         let verify_credential = NonMellableElgamal::verify_credential(&encrypted_credential,rid, vid, &pp);
         assert!(verify_credential);
     }

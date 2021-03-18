@@ -52,39 +52,41 @@ pub fn div_and_pow(x: &BigInt, x_tag: &BigInt, c: &BigInt, p: &BigInt) -> BigInt
 
 impl Voter {
     //The following function is used for debugging
+
     pub fn simple_create(voter_number: usize, pp: ElGamalPP)-> Self{
         let key_pair = ElGamalKeyPair::generate(&pp);
         //  let key_pair= ElGamalKeyPair{ pk: ElGamalPublicKey { pp:pp.clone(), h: BigInt::from(13) }, sk: ElGamalPrivateKey{ pp:pp.clone(), x: BigInt::from(29) } };
-        let h_v = BigInt::sample_below(&pp.p);
         Self {
             designation_key_pair: key_pair,
             voter_number,
             pp: pp.clone(),
             private_credential: None,
             nonce_for_candidate_encryption: BigInt::zero(),
-            KTT: ElGamalPublicKey{ pp: pp.clone(), h:BigInt::zero() },
+            KTT: ElGamalPublicKey{ pp: pp.clone(), h:BigInt::one() },
             chosen_candidate: None,
             eid: 0,
             encrypted_candidate_list: Vec::new()
         }
-
     }
 
 
-    pub fn create(voter_number: usize, params: SystemParameters) -> Self {
+
+
+
+    pub fn create(voter_number: usize, params: &SystemParameters) -> Self {
         let key_pair = ElGamalKeyPair::generate(&params.pp);
         //  let key_pair= ElGamalKeyPair{ pk: ElGamalPublicKey { pp:pp.clone(), h: BigInt::from(13) }, sk: ElGamalPrivateKey{ pp:pp.clone(), x: BigInt::from(29) } };
         let h_v = BigInt::sample_below(&params.pp.p);
         Self {
             designation_key_pair: key_pair,
             voter_number,
-            pp: params.pp,
+            pp: params.pp.clone(),
             private_credential: None,
-            nonce_for_candidate_encryption: params.nonce_for_candidate_encryption,
-            KTT: params.KTT,
+            nonce_for_candidate_encryption: params.nonce_for_candidate_encryption.clone(),
+            KTT: params.KTT.clone(),
             chosen_candidate: None,
             eid: params.eid,
-            encrypted_candidate_list: params.encrypted_candidate_list
+            encrypted_candidate_list: params.encrypted_candidate_list.clone()
         }
     }
 
@@ -145,55 +147,59 @@ impl Voter{
     //The voter need to verify that:
     // 1. S'_i = Enc(s_i, r; KTT)
     // 2. S’_i is a reencryption of S_i using DVRP, where S_i is retrieved from the bulletin board
-    fn verify_credentials(&self, cred_share: &CredetialShareOutput, S_i: &ElGamalCiphertext//comes from the bulletin board
-                   ) -> bool {
+    pub fn verify_credentials(&self, cred_share: &CredetialShareOutput, S_i: &ElGamalCiphertext//comes from the bulletin board
+         ) -> bool {
+        println!("Si= {:?}",S_i);
         let verification_1: bool =
             cred_share.S_i_tag ==
                 ElGamal::encrypt_from_predefined_randomness(&cred_share.s_i, &self.KTT, &cred_share.r_i).unwrap();
         let verification_2 = DVRP_verifier(
-            self, &cred_share.get_dvrp_input(S_i), &cred_share.dvrp_proof
+            self, &cred_share.get_dvrp_input(&self.designation_key_pair.pk.h, S_i), &cred_share.dvrp_proof
         );
-        return verification_1 && verification_2
+        return  verification_1 && verification_2
     }
 
-    fn combine_shares( credential_private_shares: Vec<BigInt>) -> BigInt{
+    /*
+    pub fn combine_shares( credential_private_shares: Vec<BigInt>) -> BigInt{
         credential_private_shares.iter().fold(
             BigInt::zero(), |sum, i | sum + i)
     }
+*/
 
-    fn construct_shares(&mut self, received_credentials: Vec<CredetialShareOutput>, S_i_vec: Vec<ElGamalCiphertext>) -> (){
+    pub fn construct_private_credential_from_shares(&mut self, received_credentials: Vec<CredetialShareOutput>, S_i_vec: Vec<ElGamalCiphertext>) -> Option<BigInt>{
         let length = received_credentials.len();
-        let valid_s_i_shares = (0..length)
+        let cred_constructed_from_valid_shares = (0..length)
             .map(|registrar_index|  received_credentials.get(registrar_index).unwrap())
             .enumerate()
             .filter(|(registrar_index, cred)|
                 self.verify_credentials(cred, S_i_vec.get(*registrar_index).unwrap()))
             .map(|(_,cred)| cred.clone().s_i)
-            .collect();
-        self.private_credential = Some(Voter::combine_shares(valid_s_i_shares));
+            .fold(BigInt::zero(), |sum, i | sum + i);
+        Some(cred_constructed_from_valid_shares)
     }
 
-    fn set_vote(mut self, candidate: i8){
+    pub fn set_vote(mut self, candidate: i8){
         self.chosen_candidate = Some(candidate);
     }
 
 
 
-    fn vote(&self, encrypted_candidate_list: Vec<ElGamalCiphertext>, chosen_candidate: usize)-> Vote{
+    pub fn vote(&self,  candidate_index: usize)-> Vote{
+        assert!(&self.private_credential.is_some());
         let nonce_for_encrypting_credentials = sample_from!(&self.get_q());
         let ev = ElGamal::encrypt_from_predefined_randomness(
-            &self.private_credential.as_ref().unwrap(), &self.KTT, &nonce_for_encrypting_credentials)
+            &self.private_credential.clone().unwrap(), &self.KTT, &nonce_for_encrypting_credentials)
             .unwrap();//encryption of the credential
         let nonce_for_reecryption = BigInt::sample_below(&self.get_q());
         let es =reencrypt(&ElGamalCipherTextAndPK { 
-            ctx: encrypted_candidate_list.get(chosen_candidate).unwrap().clone(),
+            ctx: self.encrypted_candidate_list.get(candidate_index).unwrap().clone(),
             pk: &self.KTT
         },
             &nonce_for_reecryption
         );//reencryption of the vote with the tellers public key
-        let reenc_proof_input = ReencProofInput{ C_list: encrypted_candidate_list, c: es.clone()};
+        let reenc_proof_input = ReencProofInput{ C_list: self.encrypted_candidate_list.clone(), c: es.clone()};
         let pw = reenc_proof_input.reenc_1_out_of_L_prove(
-            &self.get_pp(), &self.designation_key_pair.pk, chosen_candidate,
+            &self.get_pp(), &self.designation_key_pair.pk, candidate_index,
             nonce_for_reecryption.clone(), NUMBER_OF_CANDIDATES);
         let vote_pf_input = VotePfPublicInput{
             encrypted_credential: ev.clone(),
@@ -207,11 +213,11 @@ impl Voter{
 
     // Verify the proofs of votepf and reencryption
     // move function to tallies
-    pub fn check_votes(voter: Voter, vote: Vote, eid: usize) -> bool{
+    pub fn check_votes(voter: &Voter, vote: Vote) -> bool{
         let vote_pf_input = VotePfPublicInput{
             encrypted_credential: vote.ev.clone(),
             encrypted_choice: vote.es.clone(),
-            eid: BigInt::from(eid as i32)
+            eid:BigInt::from(voter.eid)
         };
         let check_1 = vote.pf.votepf_verifier(&vote_pf_input,&voter);
         assert!(check_1);
