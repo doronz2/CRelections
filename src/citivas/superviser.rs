@@ -11,7 +11,7 @@ use std::convert::TryInto;
 use vice_city::ProofError;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
-use crate::Error;
+use crate::{Error, encrypt_toy, generate_keys_toy};
 use crate::citivas::encryption_schemes::{reencrypt, encoding_quadratic_residue, ElGamalCipherTextAndPK};
 use crate::citivas::tellers::*;
 
@@ -28,6 +28,7 @@ pub struct SystemParameters {
     pub pp: ElGamalPP,
     pub num_of_tellers: usize,
     pub num_of_voters: usize,
+    pub num_of_candidates: usize,
     pub O: BigInt, //a set (of size O) is specified in Citivas where random parameter are selected from
     pub nonce_for_candidate_encryption: BigInt, //the reason for publishing this is that it is needed for computing the witness in votePf. //The reason not to hide the candidate under the encryption is that the encryption is done (AFAIK) for creating a data format that allows to prove  reenc 1 out of L
     pub encrypted_candidate_list: Vec<ElGamalCiphertext>,
@@ -42,7 +43,7 @@ impl SystemParameters {
     pub fn receive_KTT_from_tallies(pp: ElGamalPP)-> ElGamalPublicKey {
         ElGamalPublicKey {
             pp,
-            h: BigInt::one()
+            h: BigInt::from(4)
         }
     }
 
@@ -60,6 +61,29 @@ impl SystemParameters {
             pp: pp.clone(),
             num_of_tellers: NUMBER_OF_TALLIES,
             num_of_voters: NUMBER_OF_VOTERS,
+            num_of_candidates: NUMBER_OF_CANDIDATES,
+            O: BigInt::from_str(O_STRING).unwrap(),
+            nonce_for_candidate_encryption,
+            encrypted_candidate_list,
+            KTT,
+            eid: 0
+        }
+    }
+
+    pub fn create_supervisor_toy(pp: &ElGamalPP) -> Self{
+        let O = BigInt::from_str(O_STRING).unwrap();
+        let nonce_for_candidate_encryption = BigInt::sample_below(&pp.q);
+        let KTT = SystemParameters::receive_KTT_from_tallies(pp.clone());
+        let encrypted_candidate_list = (1..NUMBER_OF_CANDIDATES + 1).
+            map(|candidate| encrypt_toy(
+                &BigInt::from(candidate as i32), &KTT
+            ).unwrap())
+            .collect();
+        SystemParameters{
+            pp: pp.clone(),
+            num_of_tellers: NUMBER_OF_TALLIES,
+            num_of_voters: NUMBER_OF_VOTERS,
+            num_of_candidates: NUMBER_OF_CANDIDATES,
             O: BigInt::from_str(O_STRING).unwrap(),
             nonce_for_candidate_encryption,
             encrypted_candidate_list,

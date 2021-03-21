@@ -26,7 +26,7 @@ pub fn encrypt_toy(m: &BigInt, pk: &ElGamalPublicKey) -> Result<ElGamalCiphertex
     if m.ge(&pk.pp.q) || m.le(&BigInt::zero()) {
         return Err(ElGamalError::EncryptionError);
     }
-    let y = BigInt::from(2);
+    let y = BigInt::from(3);
     let c1 = BigInt::mod_pow(&pk.pp.g, &y, &pk.pp.p);
     let s = BigInt::mod_pow(&pk.h, &y, &pk.pp.p);
     let c2 = BigInt::mod_mul(&s, &m, &pk.pp.p);

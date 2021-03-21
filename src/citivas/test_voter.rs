@@ -14,6 +14,7 @@ pub mod test_voter {
     use crate::citivas::Entity::Entity;
     use crate::citivas::superviser::*;
     use crate::citivas::registrar::*;
+    use crate::{generate_keys_toy, generate_pp_toy};
 
     #[test]
     pub fn validate_credential_shares() {
@@ -51,7 +52,7 @@ pub mod test_voter {
         let cred_share_output_1 = registrar_1.publish_credential_with_proof(&share_1, dvrp_input_1);
         let cred_share_output_2 = registrar_2.publish_credential_with_proof(&share_2, dvrp_input_2);
         let cred_share_output_3 = registrar_3.publish_credential_with_proof(&share_3, dvrp_input_3);
-        //this bad share of registrar 3 should not be counted as the dvrp proof is false
+        //this bad share of registrar 3 should not be counted as it's dvrp proof does not pass verification
         let bad_encryption = ElGamal::encrypt(&BigInt::from(1234),&voter.designation_key_pair.pk).unwrap();
 
         let private_credential = voter.construct_private_credential_from_shares(
@@ -61,15 +62,18 @@ pub mod test_voter {
     #[test]
     pub fn test_vote() {
         let group_id = SupportedGroups::FFDHE4096;
-        let pp = ElGamalPP::generate_from_rfc7919(group_id);
+        //let pp = ElGamalPP::generate_from_rfc7919(group_id);
+        let pp = generate_pp_toy();
         let voter_number = 1;
-        let params = &SystemParameters::create_supervisor(&pp);
+        let params = &SystemParameters::create_supervisor_toy(&pp);
         let mut voter = Voter::create(voter_number, &params);
-        let private_credential = sample_from!(&pp.p);
+        //let private_cred = encoding_quadratic_residue(sample_from!(&pp.p),&pp);
+        let private_cred = encoding_quadratic_residue(BigInt::from(3),&pp);
 
+        voter.set_private_credential(private_cred);
         let candidate_index = 1;
-        let vote = voter.vote(candidate_index);
-        assert!(Voter::check_votes(&voter, vote));
+        let vote = voter.vote(candidate_index, params.clone());
+        assert!(Voter::check_votes(&voter, vote, &params));
     }
 
 }
