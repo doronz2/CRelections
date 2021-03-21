@@ -192,7 +192,7 @@ impl Voter{
     pub fn vote(&self,  candidate_index: usize, params: SystemParameters)-> Vote{
         assert!(&self.private_credential.is_some());
         let nonce_for_encrypting_credentials = sample_from!(&self.get_q());
-        let nonce_for_encrypting_credentials = BigInt::from(3);
+      //  let nonce_for_encrypting_credentials = BigInt::from(3);
         println!("private cred: {:?}", &self.private_credential.clone().unwrap());
         let ev = ElGamal::encrypt_from_predefined_randomness(
             &self.private_credential.clone().unwrap(), &self.KTT, &nonce_for_encrypting_credentials)
@@ -209,7 +209,7 @@ impl Voter{
         println!("es {:?}", es.clone());
         let reenc_proof_input = ReencProofInput{ C_list: self.encrypted_candidate_list.clone(), c: es.clone()};
         println!("{:#?}", reenc_proof_input.clone());
-        let pw = reenc_proof_input.reenc_1_out_of_L_prove(
+        let pw = reenc_proof_input.reenc_out_of_list_1_out_of_L_prove(
             &self.get_pp(), &self.KTT, candidate_index,
             nonce_for_reecryption.clone(), params.num_of_candidates);
         let vote_pf_input = VotePfPublicInput{
@@ -231,14 +231,14 @@ impl Voter{
             eid:BigInt::from(voter.eid)
         };
         let check_1 = vote.pf.votepf_verifier(&vote_pf_input,&voter);
-      //  assert!(check_1);
+        assert!(check_1);
         let reenc_proof_input = ReencProofInput{ C_list: voter.encrypted_candidate_list.clone(), c: vote.es.clone()};
         println!("C list: {:#?}",  reenc_proof_input);
         let check_2 = reenc_proof_input.reenc_1_out_of_L_verifier(
             &voter.get_pp(), &voter.KTT,vote.pw,params.num_of_candidates
         );
         assert!(check_2);
-        check_1 && check_2
+        check_2
     }
 }
 

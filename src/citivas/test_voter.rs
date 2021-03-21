@@ -62,8 +62,8 @@ pub mod test_voter {
     #[test]
     pub fn test_vote() {
         let group_id = SupportedGroups::FFDHE4096;
-        //let pp = ElGamalPP::generate_from_rfc7919(group_id);
-        let pp = generate_pp_toy();
+        let pp = ElGamalPP::generate_from_rfc7919(group_id);
+        //let pp = generate_pp_toy();
         let voter_number = 1;
         let params = &SystemParameters::create_supervisor_toy(&pp);
         let mut voter = Voter::create(voter_number, &params);

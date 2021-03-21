@@ -14,6 +14,7 @@ pub mod test_zk_proofs {
     use crate::{generate_keys_toy, encrypt_toy, generate_pp_toy};
     use crate::citivas::Entity::Entity;
     use crate::citivas::superviser::*;
+    use std::ops::Neg;
 
     #[test]
     fn test_votePF(){
@@ -30,7 +31,7 @@ pub mod test_zk_proofs {
     }
 
     #[test]
-    pub fn test_reenc_1_out_of_L(){
+    pub fn test_reenc_in_list_1_out_of_L(){
         let group_id = SupportedGroups::FFDHE4096;
         let pp = ElGamalPP::generate_from_rfc7919(group_id);
         let key_pair = ElGamalKeyPair::generate(&pp);
@@ -46,7 +47,28 @@ pub mod test_zk_proofs {
         let cipher = ElGamalCipherTextAndPK{ ctx: ctx.clone(), pk: &key_pair.pk };
         C_list[t] = reencrypt(&cipher,&enc_key);
         let input = ReencProofInput{ C_list, c: ctx.clone() };
-        let proof = input.reenc_1_out_of_L_prove(&pp,&key_pair.pk, t, enc_key, L);
+        let proof = input.reenc_in_list_1_out_of_L_prove(&pp,&key_pair.pk, t, enc_key, L);
+        let verification = input.reenc_1_out_of_L_verifier(&pp,&key_pair.pk, proof, L);
+        assert!(verification);
+    }
+
+    #[test]
+    pub fn test_reenc_out_list_1_out_of_L(){
+        let group_id = SupportedGroups::FFDHE4096;
+        let pp = ElGamalPP::generate_from_rfc7919(group_id);
+        let key_pair = ElGamalKeyPair::generate(&pp);
+        let L = 3;
+        let mut C_list: Vec<ElGamalCiphertext> = (0..L)
+            .map(|_| ElGamal::encrypt(&BigInt::sample_below(&pp.q),&key_pair.pk ).unwrap())
+            .collect();
+        let t = 1;
+        let c_t = ElGamalCipherTextAndPK{ ctx: C_list[t].clone(), pk: &key_pair.pk };
+        let nonce = BigInt::from(17);
+        //assert_eq!(nonce.clone() + nonce.clone().neg(), BigInt::zero());
+
+        let ctx = reencrypt(&c_t, &nonce);
+         let input = ReencProofInput{ C_list, c: ctx };
+        let proof = input.reenc_out_of_list_1_out_of_L_prove(&pp,&key_pair.pk, t, nonce, L);
         let verification = input.reenc_1_out_of_L_verifier(&pp,&key_pair.pk, proof, L);
         assert!(verification);
     }
