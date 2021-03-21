@@ -130,7 +130,7 @@ pub fn reencrypt(c: &ElGamalCipherTextAndPK, random_nonce: &BigInt)-> ElGamalCip
     let b = &c.ctx.c2;
     let g_r = BigInt::mod_pow(&c.pk.pp.g, &random_nonce, &c.pk.pp.p);
     let c1 = BigInt::mod_mul(&g_r, &a,&c.pk.pp.p);
-    println!("g_r {:?}, rand = {:?}, a = {:?}, c1 = {:?}", g_r, random_nonce, a,c1);
+   // println!("g_r {:?}, rand = {:?}, a = {:?}, c1 = {:?}", g_r, random_nonce, a,c1);
     let s = BigInt::mod_pow(&c.pk.h, &random_nonce, &c.pk.pp.p);
     let c2 = BigInt::mod_mul(&s, &b, &c.pk.pp.p);
     ElGamalCiphertext {

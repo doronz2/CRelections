@@ -49,7 +49,8 @@ impl SystemParameters {
 
     pub fn create_supervisor(pp: &ElGamalPP) -> Self{
         let O = BigInt::from_str(O_STRING).unwrap();
-        let nonce_for_candidate_encryption = BigInt::sample_below(&pp.q);
+     //   let nonce_for_candidate_encryption = BigInt::sample_below(&pp.q);
+        let nonce_for_candidate_encryption = BigInt::from(3);
         let key_pair = ElGamalKeyPair::generate(&pp);
         let KTT = SystemParameters::receive_KTT_from_tallies(pp.clone());
         let encrypted_candidate_list = (1..NUMBER_OF_CANDIDATES + 1).
@@ -72,11 +73,12 @@ impl SystemParameters {
 
     pub fn create_supervisor_toy(pp: &ElGamalPP) -> Self{
         let O = BigInt::from_str(O_STRING).unwrap();
-        let nonce_for_candidate_encryption = BigInt::sample_below(&pp.q);
+        //let nonce_for_candidate_encryption = BigInt::sample_below(&pp.q);
+        let nonce_for_candidate_encryption = BigInt::one();
         let KTT = SystemParameters::receive_KTT_from_tallies(pp.clone());
         let encrypted_candidate_list = (1..NUMBER_OF_CANDIDATES + 1).
-            map(|candidate| encrypt_toy(
-                &BigInt::from(candidate as i32), &KTT
+            map(|candidate| ElGamal::encrypt_from_predefined_randomness(
+                &BigInt::from(candidate as i32), &KTT, &BigInt::one()
             ).unwrap())
             .collect();
         SystemParameters{
