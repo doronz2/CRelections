@@ -157,14 +157,6 @@ impl Voter{
         return  verification_1 && verification_2
     }
 
-    /*
-    pub fn combine_shares( credential_private_shares: Vec<BigInt>) -> BigInt{
-        credential_private_shares.iter().fold(
-            BigInt::zero(), |sum, i | sum + i)
-    }
-*/
-
-
     pub fn construct_private_credential_from_shares(&mut self, received_credentials: Vec<CredetialShareOutput>, S_i_vec: Vec<ElGamalCiphertext>) -> Option<BigInt>{
         let length = received_credentials.len();
         let cred_constructed_from_valid_shares = (0..length)
@@ -189,23 +181,17 @@ impl Voter{
 
     pub fn vote(&self,  candidate_index: usize, params: SystemParameters)-> Vote{
         assert!(&self.private_credential.is_some());
-      //  let nonce_for_encrypting_credentials = sample_from!(&self.get_q());
-        let nonce_for_encrypting_credentials = BigInt::from(3);
+       let nonce_for_encrypting_credentials = sample_from!(&self.get_q());
         let ev = ElGamal::encrypt_from_predefined_randomness(
             &self.private_credential.clone().unwrap(), &self.KTT, &nonce_for_encrypting_credentials)
             .unwrap();//encryption of the credential
-       // let nonce_for_reecryption = BigInt::sample_below(&self.get_q());
-         let nonce_for_reecryption = BigInt::from(7);
-        println!("list: {:?}", self.encrypted_candidate_list);
+        let nonce_for_reecryption = BigInt::sample_below(&self.get_q());
         let es =reencrypt(&ElGamalCipherTextAndPK {
             ctx: self.encrypted_candidate_list.get(candidate_index).unwrap().clone(),
             pk: &self.KTT
         },
             &nonce_for_reecryption
         );//reencryption of the vote with the tellers public key
-        println!("ev {:?}", ev.clone());
-        println!("es {:?}", es.clone());
-
         let reenc_proof_input = ReencProofInput{ C_list: self.encrypted_candidate_list.clone(), c: es.clone()};
         let pw = reenc_proof_input.reenc_out_of_list_1_out_of_L_prove(
             &self.get_pp(), &self.KTT, candidate_index,
@@ -216,11 +202,7 @@ impl Voter{
             eid: BigInt::from(self.eid as i32)
         };
         let witness = VoteWitness{ alpha_1: nonce_for_encrypting_credentials, alpha_2: &self.nonce_for_candidate_encryption + nonce_for_reecryption.clone()};
-        println!("part_1: {:?}, part_2: {:?}",  &self.nonce_for_candidate_encryption ,  nonce_for_reecryption.clone());
-        println!("witness {:?}", witness.clone());
         let pf = vote_pf_input.votepf_prover(&self, witness);
-        println!("pf_input {:#?}", vote_pf_input.clone());
-
         Vote{ev, es, pf, pw}
     }
 
@@ -233,13 +215,11 @@ impl Voter{
             eid:BigInt::from(voter.eid)
         };
         let check_1 = vote.pf.votepf_verifier(&vote_pf_input,&voter);
-        assert!(check_1);
         let reenc_proof_input = ReencProofInput{ C_list: voter.encrypted_candidate_list.clone(), c: vote.es.clone()};
         let check_2 = reenc_proof_input.reenc_1_out_of_L_verifier(
             &voter.get_pp(), &voter.KTT,vote.pw,params.num_of_candidates
         );
-        assert!(check_2);
-        check_2
+        check_1 && check_2
     }
 }
 
