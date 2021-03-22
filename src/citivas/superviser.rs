@@ -2,18 +2,11 @@ use elgamal::{ElGamal,rfc7919_groups::SupportedGroups,ElGamalPP,
 ElGamalKeyPair,ElGamalError,ElGamalCiphertext,
 ElGamalPrivateKey,ElGamalPublicKey,ExponentElGamal};
 use curv::BigInt;
-
-use curv::arithmetic::traits::Modulo;
-use curv::arithmetic::traits::Samplable;
-use curv::cryptographic_primitives::hashing::hash_sha256;
-use curv::cryptographic_primitives::hashing::traits::Hash;
-use std::convert::TryInto;
-use vice_city::ProofError;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
-use crate::{Error, encrypt_toy, generate_keys_toy};
-use crate::citivas::encryption_schemes::{reencrypt, encoding_quadratic_residue, ElGamalCipherTextAndPK};
-use crate::citivas::tellers::*;
+
+
+
 
 
 const O_STRING: &str ="5493847203023738409235948752";
@@ -48,7 +41,7 @@ impl SystemParameters {
     }
 
     pub fn create_supervisor(pp: &ElGamalPP) -> Self{
-        let O = BigInt::from_str(O_STRING).unwrap();
+        let _O = BigInt::from_str(O_STRING).unwrap();
      //   let nonce_for_candidate_encryption = BigInt::sample_below(&pp.q);
         let nonce_for_candidate_encryption = BigInt::from(3);
         let key_pair = ElGamalKeyPair::generate(&pp);
@@ -72,7 +65,7 @@ impl SystemParameters {
     }
 
     pub fn create_supervisor_toy(pp: &ElGamalPP) -> Self{
-        let O = BigInt::from_str(O_STRING).unwrap();
+        let _O = BigInt::from_str(O_STRING).unwrap();
         //let nonce_for_candidate_encryption = BigInt::sample_below(&pp.q);
         let nonce_for_candidate_encryption = BigInt::one();
         let KTT = SystemParameters::receive_KTT_from_tallies(pp.clone());

@@ -1,20 +1,14 @@
+#[cfg(test)]
 pub mod test_zk_proofs {
-    use elgamal::{ElGamal, rfc7919_groups::SupportedGroups, ElGamalPP,
-                  ElGamalKeyPair, ElGamalError, ElGamalCiphertext,
-                  ElGamalPrivateKey, ElGamalPublicKey, ExponentElGamal};
-    use curv::BigInt;
-
-    use curv::arithmetic::traits::Modulo;
-    use curv::arithmetic::traits::Samplable;
-    use curv::cryptographic_primitives::hashing::hash_sha256;
-    use curv::cryptographic_primitives::hashing::traits::Hash;
-    use crate::citivas::encryption_schemes::*;
     use crate::citivas::zkproofs::*;
-    use crate::citivas::voter::*;
-    use crate::{generate_keys_toy, encrypt_toy, generate_pp_toy};
+    use crate::{SupportedGroups, ElGamalPP, ElGamalKeyPair, ElGamal, ElGamalCiphertext};
+    use crate::citivas::superviser::SystemParameters;
+    use crate::citivas::voter::Voter;
+    use crate::citivas::encryption_schemes::{ElGamalCipherTextAndPK, reencrypt, encoding_quadratic_residue};
     use crate::citivas::Entity::Entity;
-    use crate::citivas::superviser::*;
-    use std::ops::Neg;
+    use crate::BigInt;
+    use curv::arithmetic::traits::{Samplable, Modulo};
+
 
     #[test]
     fn test_votePF(){
@@ -58,7 +52,7 @@ pub mod test_zk_proofs {
         let pp = ElGamalPP::generate_from_rfc7919(group_id);
         let key_pair = ElGamalKeyPair::generate(&pp);
         let L = 3;
-        let mut C_list: Vec<ElGamalCiphertext> = (0..L)
+        let C_list: Vec<ElGamalCiphertext> = (0..L)
             .map(|_| ElGamal::encrypt(&BigInt::sample_below(&pp.q),&key_pair.pk ).unwrap())
             .collect();
         let t = 1;
@@ -81,7 +75,7 @@ pub mod test_zk_proofs {
         let voter_number = 1;
         let voter = Voter::simple_create(voter_number,pp.clone());
         let eta = BigInt::from(7);
-        let msg = 269;
+        let _msg = 269;
         let r = BigInt::sample_below(&pp.q);
         let encoded_msg = encoding_quadratic_residue(BigInt::from(17), &pp);
         let e = ElGamal::encrypt_from_predefined_randomness(
@@ -89,7 +83,7 @@ pub mod test_zk_proofs {
         ).unwrap();
         let e_with_pk = ElGamalCipherTextAndPK{ ctx:e.clone() , pk: &voter.designation_key_pair.pk};//need to get read of the struct  ElGamalCipherTextAndPK and create voter with pk
         let e_tag = reencrypt(&e_with_pk, &eta);
-        let div = BigInt::mod_mul(&BigInt::mod_inv(&e.c2,&pp.p),
+        let _div = BigInt::mod_mul(&BigInt::mod_inv(&e.c2,&pp.p),
                                   &e_tag.clone().c2.mod_floor(&pp.p)
                                   , &pp.p);
 
@@ -106,7 +100,7 @@ pub mod test_zk_proofs {
         let voter_number = 1;
         let voter = Voter::simple_create(voter_number,pp.clone());
         let eta = BigInt::from(7);
-        let msg = 269;
+        let _msg = 269;
         let r = BigInt::sample_below(&pp.q);
         let encoded_msg = encoding_quadratic_residue(BigInt::from(17), &pp);
         let e = ElGamal::encrypt_from_predefined_randomness(
@@ -114,7 +108,7 @@ pub mod test_zk_proofs {
         ).unwrap();
         let e_with_pk = ElGamalCipherTextAndPK{ ctx:e.clone() , pk: &voter.designation_key_pair.pk};//need to get read of the struct  ElGamalCipherTextAndPK and create voter with pk
         let e_tag = reencrypt(&e_with_pk, &eta);
-        let div = BigInt::mod_mul(&BigInt::mod_inv(&e.c2,&pp.p),
+        let _div = BigInt::mod_mul(&BigInt::mod_inv(&e.c2,&pp.p),
                                   &e_tag.clone().c2.mod_floor(&pp.p)
                                   , &pp.p);
 

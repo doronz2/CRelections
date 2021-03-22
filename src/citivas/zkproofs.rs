@@ -12,7 +12,7 @@ use vice_city::ProofError;
 use serde::{Deserialize, Serialize};
 use crate::citivas::voter::Voter;
 use crate::citivas::Entity::Entity;
-use crate::citivas::encryption_schemes::{ElGamalCipherTextAndPK, reencrypt, encoding_quadratic_residue};
+
 use std::ops::Neg;
 
 
@@ -387,8 +387,8 @@ impl ReencProofInput {
         let a_tag: BigInt = (BigInt::mod_pow(&entity.get_generator(), &dvrp_proof.u, &entity.get_p()) *
             BigInt::mod_inv(&div_and_pow(&x, &x_tag, &(&dvrp_proof.c + &dvrp_proof.w), &entity.get_p())
                             , &entity.get_p())).mod_floor(&entity.get_p());
-        let nom = BigInt::mod_pow(&entity.get_generator(), &dvrp_proof.u, &entity.get_p());
-        let denom = div_and_pow(&x, &x_tag, &(&dvrp_proof.c + &dvrp_proof.w), &entity.get_p());
+        let _nom = BigInt::mod_pow(&entity.get_generator(), &dvrp_proof.u, &entity.get_p());
+        let _denom = div_and_pow(&x, &x_tag, &(&dvrp_proof.c + &dvrp_proof.w), &entity.get_p());
         let b_tag: BigInt = (BigInt::mod_pow(&h, &dvrp_proof.u, &entity.get_p()) *
             BigInt::mod_inv(&div_and_pow(&y, &y_tag, &(&dvrp_proof.c + &dvrp_proof.w), &entity.get_p())
                             , &entity.get_p())).mod_floor(&entity.get_p());

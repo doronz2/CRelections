@@ -1,15 +1,10 @@
+#[cfg(test)]
 pub mod test_encryption {
-    use elgamal::{ElGamal,rfc7919_groups::SupportedGroups,ElGamalPP,
-                  ElGamalKeyPair,ElGamalError,ElGamalCiphertext,
-                  ElGamalPrivateKey,ElGamalPublicKey,ExponentElGamal};
-    use curv::BigInt;
-
-    use curv::arithmetic::traits::Modulo;
-    use curv::arithmetic::traits::Samplable;
-    use curv::cryptographic_primitives::hashing::hash_sha256;
-    use curv::cryptographic_primitives::hashing::traits::Hash;
-    use crate::citivas::encryption_schemes::*;
-
+    use crate::{SupportedGroups, ElGamalPP, ElGamalKeyPair, ElGamal, ExponentElGamal};
+    use crate::citivas::encryption_schemes::
+    {encoding_quadratic_residue, NonMellableElgamal, ElGamalCipherTextAndPK, reencrypt};
+    use crate::BigInt;
+    use curv::arithmetic::traits::{Modulo, Samplable};
 
     #[test]
     fn test_basic_el_gamal() {
@@ -18,7 +13,7 @@ pub mod test_encryption {
         let alice_key_pair = ElGamalKeyPair::generate(&pp);
         let msg = BigInt::from(987);
         let cipher = elgamal::ElGamal::encrypt(&msg, &alice_key_pair.pk).unwrap();
-        let plain = elgamal::ElGamal::decrypt(&cipher, &alice_key_pair.sk).unwrap();
+        let _plain = elgamal::ElGamal::decrypt(&cipher, &alice_key_pair.sk).unwrap();
         let factor1 = elgamal::ElGamal::
         encrypt(&BigInt::from(5), &alice_key_pair.pk).unwrap();
         let factor2 = elgamal::ElGamal::
@@ -54,7 +49,7 @@ pub mod test_encryption {
         let pp = ElGamalPP::generate_from_rfc7919(group_id);
         let key_pair = ElGamalKeyPair::generate(&pp);
         for msg in 1..40 {
-            let encoded_msg = encoding_quadratic_residue(BigInt::from(msg), &pp);
+            let _encoded_msg = encoding_quadratic_residue(BigInt::from(msg), &pp);
         }
         let encoded_msg = encoding_quadratic_residue(BigInt::from(17), &pp);
         let encrypted_msg = NonMellableElgamal::encrypt(&encoded_msg, &key_pair.pk).unwrap();
@@ -81,7 +76,7 @@ pub mod test_encryption {
         let group_id = SupportedGroups::FFDHE4096;
         let pp = ElGamalPP::generate_from_rfc7919(group_id);
         let key_pair = ElGamalKeyPair::generate(&pp);
-        let msg = 269;
+        let _msg = 269;
         let encoded_msg = encoding_quadratic_residue(BigInt::from(17), &pp);
         let r = BigInt::sample_below(&pp.q);
         let ctx = elgamal::ElGamal::encrypt_from_predefined_randomness(

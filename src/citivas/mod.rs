@@ -1,5 +1,4 @@
 mod encryption_schemes;
-//mod registrar;
 mod tellers;
 mod test_voter;
 mod voter;
@@ -13,7 +12,3 @@ mod Entity;
 mod registrar;
 
 
-#[test]
-pub fn integration_testing(){
-
-}

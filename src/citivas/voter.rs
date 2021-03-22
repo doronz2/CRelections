@@ -1,25 +1,25 @@
-use elgamal::{ElGamal,rfc7919_groups::SupportedGroups,ElGamalPP,
-              ElGamalKeyPair,ElGamalError,ElGamalCiphertext,
-              ElGamalPrivateKey,ElGamalPublicKey,ExponentElGamal};
+use elgamal::{ElGamal,ElGamalPP,
+              ElGamalKeyPair ,ElGamalCiphertext,
+              ElGamalPrivateKey,ElGamalPublicKey};
 use curv::BigInt;
 
 use curv::arithmetic::traits::Modulo;
 use curv::arithmetic::traits::Samplable;
-use curv::cryptographic_primitives::hashing::hash_sha256;
-use curv::cryptographic_primitives::hashing::traits::Hash;
-use std::convert::TryInto;
-use vice_city::ProofError;
+
+
+
+
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
+
 use crate::citivas::encryption_schemes::{reencrypt, ElGamalCipherTextAndPK};
-use rand::seq::SliceRandom;
-use rand::thread_rng;
-use crate::citivas::superviser::{SystemParameters, NUMBER_OF_CANDIDATES};
-use crate::citivas::superviser;
+
+
+use crate::citivas::superviser::{SystemParameters};
+
 use crate::citivas::Entity::Entity;
 use crate::citivas::zkproofs::*;
-use crate::citivas::registrar;
-use crate::citivas::registrar::{CredetialShareOutput, Registrar};
+
+use crate::citivas::registrar::{CredetialShareOutput};
 
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]

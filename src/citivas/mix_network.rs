@@ -3,18 +3,18 @@ use elgamal::{ElGamal,rfc7919_groups::SupportedGroups,ElGamalPP,
               ElGamalPrivateKey,ElGamalPublicKey,ExponentElGamal};
 use curv::BigInt;
 
-use curv::arithmetic::traits::Modulo;
+
 use curv::arithmetic::traits::Samplable;
 use curv::cryptographic_primitives::hashing::hash_sha256;
 use curv::cryptographic_primitives::hashing::traits::Hash;
-use std::convert::TryInto;
-use vice_city::ProofError;
+
+
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
-use crate::citivas::encryption_schemes::{reencrypt, ElGamalCipherTextAndPK, encoding_quadratic_residue};
+
+use crate::citivas::encryption_schemes::{reencrypt, ElGamalCipherTextAndPK};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
-use crate::citivas::superviser::NUMBER_OF_VOTERS;
+
 
 
 const M:usize = 8;
@@ -41,7 +41,7 @@ pub struct MixOutput{
 
 impl <'a>MixInput<'a>{
     //not that some code is redundent as the lists (permuted and its inverse are computed twice for both directions
-    pub fn mix(mut self, dir:bool ) -> MixOutput {
+    pub fn mix(self, dir:bool ) -> MixOutput {
         let mut rng = thread_rng();
 
         let mut permuted_indices: [usize;M] = [0;M];
@@ -58,7 +58,7 @@ impl <'a>MixInput<'a>{
             .collect();
         println!("permuted inverse: {:?}", inverse_permuted_indices);
 
-        let mut permuted_ctx: Vec<&ElGamalCipherTextAndPK>  = permuted_indices
+        let permuted_ctx: Vec<&ElGamalCipherTextAndPK>  = permuted_indices
             .iter()
             .map(|&i| self.ctx_list.get(i).unwrap())
             .collect();

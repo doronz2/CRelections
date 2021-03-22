@@ -1,20 +1,15 @@
+#[cfg(test)]
 pub mod test_voter {
-    use elgamal::{ElGamal, rfc7919_groups::SupportedGroups, ElGamalPP,
-                  ElGamalKeyPair, ElGamalError, ElGamalCiphertext,
-                  ElGamalPrivateKey, ElGamalPublicKey, ExponentElGamal};
-    use curv::BigInt;
-
-    use curv::arithmetic::traits::Modulo;
-    use curv::arithmetic::traits::Samplable;
-    use curv::cryptographic_primitives::hashing::hash_sha256;
-    use curv::cryptographic_primitives::hashing::traits::Hash;
-    use crate::citivas::encryption_schemes::*;
-    use crate::citivas::zkproofs::*;
-    use crate::citivas::voter::*;
+    use crate::{SupportedGroups, ElGamalPP, ElGamal};
+    use crate::citivas::encryption_schemes::
+    {encoding_quadratic_residue};
+    use crate::citivas::superviser::SystemParameters;
+    use crate::citivas::voter::Voter;
+    use crate::citivas::registrar::Registrar;
+    use crate::citivas::zkproofs::DVRP_Public_Input;
+    use crate::BigInt;
     use crate::citivas::Entity::Entity;
-    use crate::citivas::superviser::*;
-    use crate::citivas::registrar::*;
-    use crate::{generate_keys_toy, generate_pp_toy};
+
 
     #[test]
     pub fn validate_credential_shares() {
@@ -55,7 +50,7 @@ pub mod test_voter {
         //this bad share of registrar 3 should not be counted as it's dvrp proof does not pass verification
         let bad_encryption = ElGamal::encrypt(&BigInt::from(1234),&voter.designation_key_pair.pk).unwrap();
 
-        let private_credential = voter.construct_private_credential_from_shares(
+        let _private_credential = voter.construct_private_credential_from_shares(
             vec![cred_share_output_1, cred_share_output_2, cred_share_output_3], vec![share_1.S_i, share_2.S_i, bad_encryption]);
     }
 
