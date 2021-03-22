@@ -14,9 +14,9 @@ use serde::{Deserialize, Serialize};
 use crate::citivas::encryption_schemes::{reencrypt, ElGamalCipherTextAndPK};
 
 
-use crate::citivas::superviser::{SystemParameters};
+use crate::citivas::supervisor::{SystemParameters};
 
-use crate::citivas::Entity::Entity;
+use crate::citivas::entity::Entity;
 use crate::citivas::zkproofs::*;
 
 use crate::citivas::registrar::{CredetialShareOutput};
@@ -37,11 +37,11 @@ pub struct Voter{
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Vote{
-    es: ElGamalCiphertext,//encryption of the private credential
-    ev: ElGamalCiphertext,//reencryption of the ciphertext, i.e., c_i is the encryption of the vote and ev is an encryption of c_i
-    pf: VotePfProof,//a proof that shows that the voter knows the private credential and the vote
+    pub(crate) es: ElGamalCiphertext,//encryption of the private credential
+    pub(crate) ev: ElGamalCiphertext,//reencryption of the ciphertext, i.e., c_i is the encryption of the vote and ev is an encryption of c_i
+    pub(crate) pf: VotePfProof,//a proof that shows that the voter knows the private credential and the vote
     // (This defends against an adversary who attempts to post functions of previously cast votes.)
-    pw: ReencProof,//a proof that shows ev is an encryption of one cipher (c_i) in the list of L candidates
+    pub(crate) pw: ReencProof,//a proof that shows ev is an encryption of one cipher (c_i) in the list of L candidates
 }
 
 //a technical function that computes (x/x')^c mod p
@@ -179,7 +179,7 @@ impl Voter{
 
 
 
-    pub fn vote(&self,  candidate_index: usize, params: SystemParameters)-> Vote{
+    pub fn vote(&self,  candidate_index: usize, params: &SystemParameters)-> Vote{
         assert!(&self.private_credential.is_some());
        let nonce_for_encrypting_credentials = sample_from!(&self.get_q());
         let ev = ElGamal::encrypt_from_predefined_randomness(
@@ -192,7 +192,7 @@ impl Voter{
         },
             &nonce_for_reecryption
         );//reencryption of the vote with the tellers public key
-        let reenc_proof_input = ReencProofInput{ C_list: self.encrypted_candidate_list.clone(), c: es.clone()};
+        let reenc_proof_input = ReencProofInput{ c_list: self.encrypted_candidate_list.clone(), c: es.clone()};
         let pw = reenc_proof_input.reenc_out_of_list_1_out_of_L_prove(
             &self.get_pp(), &self.KTT, candidate_index,
             nonce_for_reecryption.clone(), params.num_of_candidates);
@@ -202,7 +202,7 @@ impl Voter{
             eid: BigInt::from(self.eid as i32)
         };
         let witness = VoteWitness{ alpha_1: nonce_for_encrypting_credentials, alpha_2: &self.nonce_for_candidate_encryption + nonce_for_reecryption.clone()};
-        let pf = vote_pf_input.votepf_prover(&self, witness);
+        let pf = vote_pf_input.votepf_prover( witness, params);
         Vote{ev, es, pf, pw}
     }
 
@@ -214,8 +214,8 @@ impl Voter{
             encrypted_choice: vote.es.clone(),
             eid:BigInt::from(voter.eid)
         };
-        let check_1 = vote.pf.votepf_verifier(&vote_pf_input,&voter);
-        let reenc_proof_input = ReencProofInput{ C_list: voter.encrypted_candidate_list.clone(), c: vote.es.clone()};
+        let check_1 = vote.pf.votepf_verifier(&vote_pf_input,&params);
+        let reenc_proof_input = ReencProofInput{ c_list: voter.encrypted_candidate_list.clone(), c: vote.es.clone()};
         let check_2 = reenc_proof_input.reenc_1_out_of_L_verifier(
             &voter.get_pp(), &voter.KTT,vote.pw,params.num_of_candidates
         );

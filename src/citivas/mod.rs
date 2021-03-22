@@ -1,14 +1,16 @@
 mod encryption_schemes;
-mod tellers;
 mod test_voter;
 mod voter;
-mod dist_el_gamal;
+#[allow(dead_code)]
 mod zkproofs;
 pub mod mix_network;
 mod test_encryption_schemes;
 mod test_zkproofs;
-mod superviser;
-mod Entity;
+mod supervisor;
+mod entity;
 mod registrar;
+mod tellers;
+mod dist_el_gamal;
+
 
 

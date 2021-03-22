@@ -2,10 +2,10 @@
 pub mod test_zk_proofs {
     use crate::citivas::zkproofs::*;
     use crate::{SupportedGroups, ElGamalPP, ElGamalKeyPair, ElGamal, ElGamalCiphertext};
-    use crate::citivas::superviser::SystemParameters;
+    use crate::citivas::supervisor::SystemParameters;
     use crate::citivas::voter::Voter;
     use crate::citivas::encryption_schemes::{ElGamalCipherTextAndPK, reencrypt, encoding_quadratic_residue};
-    use crate::citivas::Entity::Entity;
+    use crate::citivas::entity::Entity;
     use crate::BigInt;
     use curv::arithmetic::traits::{Samplable, Modulo};
 
@@ -15,12 +15,12 @@ pub mod test_zk_proofs {
         let group_id = SupportedGroups::FFDHE4096;
         let pp = ElGamalPP::generate_from_rfc7919(group_id);
         let witness = VoteWitness::generate_random_witness(&pp);
-        let inputPF = VotePfPublicInput::generateRandomInput(&pp, &witness);
+        let inputPF = VotePfPublicInput::generate_random_input(&pp, &witness);
         let voter_number = 1;
         let params = &SystemParameters::create_supervisor(&pp);
         let voter = Voter::create(voter_number, params);
-        let proof  = inputPF.votepf_prover(&voter, witness);
-        let verification = proof.votepf_verifier(&inputPF,&voter);
+        let proof  = inputPF.votepf_prover( witness, &params,);
+        let verification = proof.votepf_verifier(&inputPF,&params);
         assert!(verification);
     }
 
@@ -40,7 +40,7 @@ pub mod test_zk_proofs {
         let enc_key = BigInt::from(17);
         let cipher = ElGamalCipherTextAndPK{ ctx: ctx.clone(), pk: &key_pair.pk };
         C_list[t] = reencrypt(&cipher,&enc_key);
-        let input = ReencProofInput{ C_list, c: ctx.clone() };
+        let input = ReencProofInput{ c_list: C_list, c: ctx.clone() };
         let proof = input.reenc_in_list_1_out_of_L_prove(&pp,&key_pair.pk, t, enc_key, L);
         let verification = input.reenc_1_out_of_L_verifier(&pp,&key_pair.pk, proof, L);
         assert!(verification);
@@ -61,7 +61,7 @@ pub mod test_zk_proofs {
         //assert_eq!(nonce.clone() + nonce.clone().neg(), BigInt::zero());
 
         let ctx = reencrypt(&c_t, &nonce);
-         let input = ReencProofInput{ C_list, c: ctx };
+         let input = ReencProofInput{ c_list: C_list, c: ctx };
         let proof = input.reenc_out_of_list_1_out_of_L_prove(&pp,&key_pair.pk, t, nonce, L);
         let verification = input.reenc_1_out_of_L_verifier(&pp,&key_pair.pk, proof, L);
         assert!(verification);
@@ -87,7 +87,7 @@ pub mod test_zk_proofs {
                                   &e_tag.clone().c2.mod_floor(&pp.p)
                                   , &pp.p);
 
-        let dvrp_input = DVRP_Public_Input::create_input(voter.get_pk(), voter.get_pk(), &e,&e_tag);
+        let dvrp_input = DvrpPublicInput::create_input(voter.get_pk(), voter.get_pk(), &e, &e_tag);
         let dvrp_proof = DVRP_prover(&voter, &dvrp_input,eta);
         let dvrp_verfication_pass = DVRP_verifier(&voter, &dvrp_input, &dvrp_proof);
         assert!(dvrp_verfication_pass);
@@ -112,7 +112,7 @@ pub mod test_zk_proofs {
                                   &e_tag.clone().c2.mod_floor(&pp.p)
                                   , &pp.p);
 
-        let dvrp_input = DVRP_Public_Input::create_input(voter.get_pk(), voter.get_pk(), &e,&e_tag);
+        let dvrp_input = DvrpPublicInput::create_input(voter.get_pk(), voter.get_pk(), &e, &e_tag);
         let dvrp_proof = fakeDVRP_prover(&voter, &dvrp_input);
         let dvrp_verfication_pass = DVRP_verifier(&voter,&dvrp_input, &dvrp_proof);
         assert!(dvrp_verfication_pass);

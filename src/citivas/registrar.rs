@@ -8,10 +8,10 @@ use crate::citivas::encryption_schemes::{reencrypt, ElGamalCipherTextAndPK};
 use curv::arithmetic::traits::Samplable;
 use serde::{Deserialize, Serialize};
 
-use crate::citivas::zkproofs::{DVRP_Proof, DVRP_Public_Input, DVRP_prover, DVRP_verifier};
-use crate::citivas::Entity::Entity;
-use crate::citivas::superviser::SystemParameters;
-use crate::citivas::voter::Voter;
+use crate::citivas::zkproofs::{DvrpProof, DvrpPublicInput, DVRP_prover};
+use crate::citivas::entity::Entity;
+
+
 //use crate::macros;
 
 pub struct RegistrationTeller {
@@ -104,7 +104,7 @@ pub struct CredetialShareOutput {
     pub s_i: BigInt,                //private credential share
     pub S_i_tag: ElGamalCiphertext, // Public credential share
     pub r_i: BigInt,                // randomness for encrypting S_i_tag
-    pub dvrp_proof: DVRP_Proof,
+    pub dvrp_proof: DvrpProof,
     pub dvrp_prover_pk: BigInt,
 }
 
@@ -113,8 +113,8 @@ impl CredetialShareOutput {
         &'a self,
         voter_pk: &'a BigInt,
         S_i: &'a ElGamalCiphertext,
-    ) -> DVRP_Public_Input<'a> {
-        DVRP_Public_Input {
+    ) -> DvrpPublicInput<'a> {
+        DvrpPublicInput {
             voter_public_key: voter_pk,
             prover_public_key: &self.dvrp_prover_pk,
             e: &self.S_i_tag,
@@ -194,10 +194,10 @@ impl Registrar {
     pub fn publish_credential_with_proof(
         &self,
         cred_share: &CredentialShare,
-        dvrp_input: DVRP_Public_Input,
+        dvrp_input: DvrpPublicInput,
     ) -> CredetialShareOutput {
         //  let cred_share = &self.cred_vec.get(voter_index).unwrap();
-        // let dvrp_input = &DVRP_Public_Input{ e: &cred_share.S_i_tag, e_tag: &cred_share.S_i };
+        // let dvrp_input = &DvrpPublicInput{ e: &cred_share.S_i_tag, e_tag: &cred_share.S_i };
         let proof = DVRP_prover(self, &dvrp_input, cred_share.eta.clone());
         CredetialShareOutput {
             s_i: cred_share.s_i.clone(),
@@ -212,6 +212,10 @@ impl Registrar {
 #[cfg(test)]
 pub mod test_registrar{
 use super::*;
+    use crate::citivas::supervisor::SystemParameters;
+    use crate::citivas::voter::Voter;
+    use crate::citivas::zkproofs::DVRP_verifier;
+
     #[test]
 
 //This checks using DVRP that S’_i is a reencryption of S_i using DVRP
@@ -223,7 +227,7 @@ pub fn check_credential_proof() {
     let share = registrar.create_credential_share();
     let voter_pk = &Voter::create(1, params).designation_key_pair.pk.h;
     let dvrp_input =
-        DVRP_Public_Input::create_input(voter_pk, registrar.get_pk(), &share.S_i_tag, &share.S_i);
+        DvrpPublicInput::create_input(voter_pk, registrar.get_pk(), &share.S_i_tag, &share.S_i);
     let cred_share_output = registrar.publish_credential_with_proof(&share, dvrp_input.clone());
     let check = DVRP_verifier(&registrar, &dvrp_input, &cred_share_output.dvrp_proof);
     assert!(check)

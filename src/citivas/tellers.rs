@@ -13,7 +13,10 @@ use serde::{Deserialize, Serialize};
 use crate::citivas::encryption_schemes::{reencrypt, ElGamalCipherTextAndPK};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
-use crate::citivas::superviser::SystemParameters;
+use crate::citivas::supervisor::SystemParameters;
+use crate::citivas::voter;
+use crate::citivas::voter::Vote;
+use crate::citivas::zkproofs::{VotePfPublicInput, ReencProofInput};
 
 
 const OUT: bool = true;
@@ -122,6 +125,24 @@ impl Teller{
                 inv_perm: inverse_permuted_indices
             }
         )
+    }
+
+    // Verify the proofs of votepf and reencryption
+    // move function to tallies
+    pub fn check_votes(vote: Vote, params: &SystemParameters) -> bool{
+        let vote_pf_input = VotePfPublicInput{
+            encrypted_credential: vote.ev.clone(),
+            encrypted_choice: vote.es.clone(),
+            eid:BigInt::from(params.eid)
+        };
+        let check_1 = vote.pf.votepf_verifier(&vote_pf_input,&params);
+
+        let reenc_proof_input = ReencProofInput{ c_list: params.encrypted_candidate_list.clone(), c: vote.es.clone()};
+        let check_2 = reenc_proof_input.reenc_1_out_of_L_verifier(
+            &params.pp, &params.KTT, vote.pw,params.num_of_candidates
+        );
+
+        check_1 && check_2
     }
 
 }

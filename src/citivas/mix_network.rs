@@ -1,6 +1,5 @@
 use elgamal::{ElGamal,rfc7919_groups::SupportedGroups,ElGamalPP,
-              ElGamalKeyPair,ElGamalError,ElGamalCiphertext,
-              ElGamalPrivateKey,ElGamalPublicKey,ExponentElGamal};
+              ElGamalKeyPair,ElGamalCiphertext,ElGamalPublicKey,ExponentElGamal};
 use curv::BigInt;
 
 
@@ -27,7 +26,7 @@ const IN: bool = false;
 pub struct MixInput<'a>{
     pub(crate) ctx_list : Vec<ElGamalCipherTextAndPK<'a>>,
     pp: ElGamalPP,
-    pub(crate) O: BigInt //a set (of size O) is specified in Citivas where random parameter are selected from
+    pub(crate) o: BigInt //a set (of size O) is specified in Citivas where random parameter are selected from
 }
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
@@ -63,24 +62,24 @@ impl <'a>MixInput<'a>{
             .map(|&i| self.ctx_list.get(i).unwrap())
             .collect();
 
-        let mut L_R = Vec::with_capacity(M);
-        let mut L_C = Vec::with_capacity(M);
+        let mut l_r = Vec::with_capacity(M);
+        let mut l_c = Vec::with_capacity(M);
         for i in 0..M {
             let r_i = BigInt::sample_below(&self.pp.q);
-            L_R.push(reencrypt(&permuted_ctx[i], &r_i));
+            l_r.push(reencrypt(&permuted_ctx[i], &r_i));
 
-            let w_i = BigInt::sample_below( &self.O);
+            let w_i = BigInt::sample_below( &self.o);
             if dir == IN {
-                L_C.push(hash_sha256::HSha256::create_hash(
+                l_c.push(hash_sha256::HSha256::create_hash(
                     &[&BigInt::from(permuted_indices[i] as i32), &w_i]
                 ));
             } else {
-                L_C.push(hash_sha256::HSha256::create_hash(
+                l_c.push(hash_sha256::HSha256::create_hash(
                     &[&BigInt::from(inverse_permuted_indices[i] as i32), &w_i]
                 ));
             }
         }
-        MixOutput{ ctx_mix_list: L_R, comm_to_shuffle_list: L_C}
+        MixOutput{ ctx_mix_list: l_r, comm_to_shuffle_list: l_c }
     }
 
 }
@@ -105,7 +104,7 @@ fn run_mix_network() {
                 ElGamalCipherTextAndPK{ ctx: ctx.clone(), pk}
             }).collect(),
             pp,
-            O: ()
+            o: ()
         };
         let mut l2: MixInput;
         let mut anonimized_list: Vec<ElGamalCiphertext>;
@@ -129,7 +128,7 @@ pub fn test_mix(){
             ElGamalCipherTextAndPK{ ctx, pk}
         }).collect(),
         pp,
-        O: BigInt::from(872368723)
+        o: BigInt::from(872368723)
     };
     mix_input.mix(IN);
 
