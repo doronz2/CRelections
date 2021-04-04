@@ -145,5 +145,9 @@ impl Teller{
         check_1 && check_2
     }
 
+
+    pub fn open_vote(vote: Vec<Vote>, param: SystemParameters){
+
+    }
 }
 
