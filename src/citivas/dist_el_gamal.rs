@@ -107,7 +107,7 @@ impl Party {
                 panic!("Party {} does not match commitment and proof",i);
             } //verify that both lists have the same order
         }
-        let valid_shares = comm_list.iter().
+        let valid_shares: Vec<ElGamalPublicKey> = comm_list.iter().
             zip(proof_list.iter())
             .filter( |(share_comm,share_proof)|
                 {
@@ -119,6 +119,9 @@ impl Party {
                 })
             .map(|(_,share_proof)| share_proof.pk.clone())
             .collect();
+       if valid_shares.len() == 0{
+            panic!("All share were invalidated")
+        }
         valid_shares
     }
 
@@ -136,13 +139,13 @@ impl Party {
     }
 
     //------ Distributed El Gamal Decryption --------
-    pub fn publish_shares_and_proofs_for_decryption(&self, cipher: ElGamalCiphertext)-> DistDecryptEGMsg{
+    pub fn publish_shares_and_proofs_for_decryption(&self, cipher: &ElGamalCiphertext)-> DistDecryptEGMsg{
         let a_i = BigInt::mod_pow(&cipher.c1, &self.private_share, &self.pp.p);
         let statement = DDHStatement{
             pp: self.pp.clone(),
             g1: self.pp.g.clone(),
-            h1: cipher.c1.clone(),
-            g2: self.public_share.clone(),
+            h1: self.public_share.clone(),
+            g2: cipher.c1.clone(),
             h2: a_i.clone()
         };
         let witness = DDHWitness{ x: self.private_share.clone() };
@@ -154,25 +157,28 @@ impl Party {
         }
     }
 
-    pub fn dist_EG_decrypt(self, cipher: ElGamalCiphertext, shares_and_proofs: Vec<DistDecryptEGMsg>)-> BigInt{
-        for msg in shares_and_proofs.clone(){
+    pub fn verify_proof_for_decryption(&self, cipher: &ElGamalCiphertext, share_and_proof: &DistDecryptEGMsg, party_index: i32)-> bool{
             let statement = DDHStatement{
                 pp: self.pp.clone(),
                 g1: self.pp.g.clone(),
-                h1: cipher.c1.clone(),
-                g2: self.public_share.clone(),
-                h2: msg.share.clone()
+                h1: self.public_share.clone(),
+                g2: cipher.c1.clone(),
+                h2: share_and_proof.share.clone()
             };
-            let is_valid = msg.proof.verify(&statement);
+            let is_valid = share_and_proof.proof.verify(&statement);
             if is_valid.is_err(){
-                panic!("share {} or proof of share {} for decryption is invalid", msg.party_index, msg.party_index);
+                panic!("share/proof of share {} for decryption is invalid", party_index);
             }
-        }
-        let a = shares_and_proofs.iter()
-            .map(|msg| msg.share.clone())
-            .fold( BigInt::one(), |prod, share| prod * share).mod_floor(&self.pp.p);
-        let decrypted_text = cipher.c2 * a.invert(&self.pp.p).unwrap();
+            else {true}
+    }
+
+    pub fn decrypt_ciphertext_from_shares( cipher: ElGamalCiphertext, shares: Vec<BigInt>, pp: &ElGamalPP)-> BigInt{
+        let A = shares.iter()
+            .fold( BigInt::one(), |prod, share| prod * share)
+            .mod_floor(&pp.p);
+        let decrypted_text = (cipher.c2 * A.invert(&pp.p).unwrap()).mod_floor(&pp.p);
         decrypted_text
+
     }
 
 }
@@ -182,6 +188,7 @@ impl Party {
 mod test {
     use super::*;
     use crate::ElGamal;
+    use crate::citivas::encryption_schemes::encoding_quadratic_residue;
 
     #[test]
     pub fn test_generate_key_from_shares() {
@@ -208,13 +215,19 @@ mod test {
         let shared_public_key =
             party_1.construct_shared_public_key(commitments, shares_and_proofs);
         let shared_private_key = ElGamalPrivateKey {
-            x: (party_1.private_share + party_2.private_share + party_3.private_share).mod_floor(&pp.p),
-            pp
+            x: (party_1.private_share + party_2.private_share + party_3.private_share).mod_floor(&pp.q),
+            pp: pp.clone()
         };
-        let msg = BigInt::from(1234);
-        let encrypted_msg = ElGamal::encrypt(&msg, &shared_public_key).unwrap();
+        let encoded_msg = encoding_quadratic_residue(BigInt::from(17), &pp);
+        let r = BigInt::sample_below(&pp.q);
+        let encrypted_msg = elgamal::ElGamal::encrypt_from_predefined_randomness(
+            &BigInt::from(encoded_msg.clone()),&shared_public_key, &r).unwrap();
+
+
+        println!("msg1: {:?}", encoded_msg);
+        let encrypted_msg = ElGamal::encrypt(&encoded_msg, &shared_public_key).unwrap();
         let decrypted_msg = ElGamal::decrypt(&encrypted_msg, &shared_private_key).unwrap();
-        assert_eq!(msg, decrypted_msg);
+        assert_eq!(encoded_msg, decrypted_msg);
     }
 
     #[test]
@@ -244,15 +257,29 @@ mod test {
 
 
 
-        let msg = BigInt::from(1234);
-        let encrypted_msg = ElGamal::encrypt(&msg, &shared_public_key).unwrap();
+        let encoded_msg = encoding_quadratic_residue(BigInt::from(17), &pp);
+        println!("msg2: {:?}", encoded_msg);
+        let r = BigInt::sample_below(&pp.q);
 
-        let proofs = parties
+        let encrypted_msg = elgamal::ElGamal::encrypt_from_predefined_randomness(
+            &BigInt::from(encoded_msg.clone()),&shared_public_key, &r).unwrap();
+
+        let shares_and_proofs: Vec<DistDecryptEGMsg> = parties
             .iter()
-            .map(|party| party.publish_shares_and_proofs_for_decryption(encrypted_msg.clone()))
+            .map(|party| party.publish_shares_and_proofs_for_decryption(&encrypted_msg))
             .collect();
-        let plain_text_msg = party_1.dist_EG_decrypt(encrypted_msg, proofs);
-        assert_eq!(msg, plain_text_msg);
+        let valid_shares_for_decryption: Vec<BigInt> = parties
+            .iter()
+            .zip(shares_and_proofs)
+            .filter(|(party, share_and_proof)| party.verify_proof_for_decryption(&encrypted_msg, share_and_proof, party.party_index) )
+            .map(|(_, shares_and_proof)| shares_and_proof.share)
+            .collect();
+        if valid_shares_for_decryption.len() == 0{
+            panic!("no share has been validated");
+        }
+        println!("number of valid shares = {:?}", valid_shares_for_decryption.len());
+        let plain_text_msg = Party::decrypt_ciphertext_from_shares( encrypted_msg, valid_shares_for_decryption, &pp);
+        assert_eq!(encoded_msg, plain_text_msg);
     }
 }
 
