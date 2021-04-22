@@ -181,7 +181,9 @@ impl Voter{
 
     pub fn vote(&self,  candidate_index: usize, params: &SystemParameters)-> Vote{
         assert!(&self.private_credential.is_some());
-       let nonce_for_encrypting_credentials = sample_from!(&self.get_q());
+        assert!(&self.private_credential.clone().unwrap()< &params.pp.q);
+
+        let nonce_for_encrypting_credentials = BigInt::sample_below(&params.pp.q);
         let ev = ElGamal::encrypt_from_predefined_randomness(
             &self.private_credential.clone().unwrap(), &self.KTT, &nonce_for_encrypting_credentials)
             .unwrap();//encryption of the credential

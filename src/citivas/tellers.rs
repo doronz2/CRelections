@@ -17,6 +17,7 @@ use crate::citivas::supervisor::SystemParameters;
 use crate::citivas::voter;
 use crate::citivas::voter::Vote;
 use crate::citivas::zkproofs::{VotePfPublicInput, ReencProofInput};
+use crate::citivas::dist_el_gamal::DistElGamal;
 
 
 const OUT: bool = true;
@@ -24,34 +25,8 @@ const IN: bool = false;
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Teller{
-    pub key_pair: ElGamalKeyPair,
+    share: DistElGamal,
     sp: SystemParameters
-}
-
-
-impl Teller{
-    pub fn createTeller(sp: SystemParameters)-> Self{
-        let key_pair = ElGamalKeyPair::generate(&sp.pp);
-        Teller{
-            key_pair,
-            sp
-        }
-    }
-
-    pub fn commit(self)-> BigInt{
-        let q = BigInt::sample_below( &self.sp.O);
-        hash_sha256::HSha256::create_hash(&[&q])//commitment to q
-    }
-
-
-}
-
-
-pub struct TellerMixParameters{
-    r_list: Vec<BigInt>,// the r parameter for reencryption of the ctx
-    w_list: Vec<BigInt>,// the w parameter for committing the ctx
-    perm: Vec<usize>, //representation of the random permutation of the ciphertexts (mixing)
-    inv_perm: Vec<usize>,//representation of the inverse random permutation of the ciphertexts (mixing)
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -67,9 +42,48 @@ pub struct MixOutput{
 }
 
 impl Teller{
+    pub fn create_teller(sp: SystemParameters, teller_index: i32)-> Self{
+        let share = DistElGamal::generate_share(&sp.pp, teller_index);
+        Teller{
+            share,
+            sp
+        }
+    }
+/*
+    pub fn commit(self)-> BigInt{
+        let q = BigInt::sample_below( &self.sp.O);
+        hash_sha256::HSha256::create_hash(&[&q])//commitment to q
+    }
+*/
+
+}
+
+
+pub struct TellerMixingParams{
+    r_list: Vec<BigInt>,// the r parameter for reencryption of the ctx
+    w_list: Vec<BigInt>,// the w parameter for committing the ctx
+    perm: Vec<usize>, //representation of the random permutation of the ciphertexts (mixing)
+    inv_perm: Vec<usize>,//representation of the inverse random permutation of the ciphertexts (mixing)
+}
+
+
+impl Teller{
+
+    pub fn get_share(&self)-> &DistElGamal{
+        &self.share
+    }
+
+    pub fn get_public_share(self)-> BigInt{
+        self.share.get_public_share()
+    }
+
+    pub fn get_private_share(self)-> BigInt{
+        self.share.get_private_share()
+    }
+
 
     //not that some code is redundent as the lists (permuted and its inverse are computed twice for both directions
-    pub fn mix(self, mix_input: MixInput, dir:bool ) -> (MixOutput, TellerMixParameters) {
+    pub fn mix(self, mix_input: MixInput, dir:bool ) -> (MixOutput, TellerMixingParams) {
         let mut rng = thread_rng();
         let M = self.sp.num_of_voters;
         let mut permuted_indices = Vec::with_capacity(M);
@@ -118,7 +132,7 @@ impl Teller{
         }
         (
             MixOutput{ ctx_mix_list: L_R, comm_to_shuffle_list: L_C},
-            TellerMixParameters{
+            TellerMixingParams{
                 r_list,
                 w_list,
                 perm: Vec::from(permuted_indices),

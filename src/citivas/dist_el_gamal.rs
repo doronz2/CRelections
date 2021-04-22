@@ -10,11 +10,9 @@ use vice_city::utlities::dlog_proof::{ProveDLog, Witness, DLogProof, Statement};
 use crate::citivas::supervisor::SystemParameters;
 use vice_city::utlities::ddh_proof::{DDHStatement, DDHProof, DDHWitness, NISigmaProof};
 
-
-pub struct Party{
-    private_share: BigInt,
-    public_share: BigInt,
-    pp: ElGamalPP,
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct DistElGamal{
+    share_key_pair: ElGamalKeyPair,// a share of key pair, i.e., a share of private and a share of public key
     party_index: i32
 }
 
@@ -29,7 +27,7 @@ pub struct KeyProof {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ShareAndCommitment{
     comm: BigInt,
-    key_pair: ElGamalKeyPair,
+    share_key_pair: ElGamalKeyPair,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -57,40 +55,47 @@ pub struct DistDecryptEGMsg{
 
 /*
 impl KeyPair{
-    pub fn generate_key_pair(party_index:i32) -> ElGamalKeyPair{
+    pub fn generate_share_key_pair(party_index:i32) -> ElGamalKeyPair{
         let group_id = SupportedGroups::FFDHE4096;
         let pp = ElGamalPP::generate_from_rfc7919(group_id);
-        let key_pair = ElGamalKeyPair::generate(&pp);
-        key_pair
+        let share_key_pair = ElGamalKeyPair::generate(&pp);
+        share_key_pair
     }
 }
 */
 
-impl Party {
+impl DistElGamal {
 
     //------ Distributed El Gamal Key Generation --------
 
-    pub fn generate_share(pp: &ElGamalPP, party_index: i32) -> Party{
-        let private_share = BigInt::sample_below(&pp.q);
-        let public_share = BigInt::mod_pow(&pp.g, &private_share, &pp.p);
-        Self{
-            private_share, public_share, pp: pp.clone(), party_index
+    pub fn generate_share(pp: &ElGamalPP, party_index: i32) -> DistElGamal{
+          Self{
+             share_key_pair: ElGamalKeyPair::generate(&pp),
+            party_index
         }
 
     }
 
+    pub fn get_public_share(self) -> BigInt{
+        self.share_key_pair.pk.h
+    }
+
+    pub  fn get_private_share(self) -> BigInt{
+        self.share_key_pair.sk.x
+    }
+
     pub fn publish_commitment_key_gen(&self) -> CommitmentKeyGen {
 
-        let comm = hash_sha256::HSha256::create_hash(&[&self.public_share]);
+        let comm = hash_sha256::HSha256::create_hash(&[&self.share_key_pair.pk.h]);
         CommitmentKeyGen{comm, party_index: self.party_index}
         }
 
 
     pub fn publish_proof_for_key_share(&self) -> KeyProof {
-        let w = Witness { x: self.private_share.clone() };
-        let dLogProof = DLogProof::prove(&w, &self.pp);
+        let w = Witness { x: self.share_key_pair.sk.x.clone() };
+        let dLogProof = DLogProof::prove(&w, &self.share_key_pair.pk.pp);
         KeyProof {
-            pk: ElGamalPublicKey{ pp: self.pp.clone(), h: self.public_share.clone()},
+            pk: ElGamalPublicKey{ pp: self.share_key_pair.pk.pp.clone(), h: self.share_key_pair.pk.h.clone()},
             proof: dLogProof,
             party_index: self.party_index }
     }
@@ -104,7 +109,7 @@ impl Party {
         }
         for i in 0..comm_list.len(){
             if comm_list[i].party_index != proof_list[i].party_index {
-                panic!("Party {} does not match commitment and proof",i);
+                panic!("DistElGamal {} does not match commitment and proof",i);
             } //verify that both lists have the same order
         }
         let valid_shares: Vec<ElGamalPublicKey> = comm_list.iter().
@@ -115,7 +120,7 @@ impl Party {
 
                     let public_key_share= &share_proof.pk;
                         share_comm.comm == hash_sha256::HSha256::create_hash(&[&public_key_share.h]) //verify commitment
-                        && share_proof.proof.verify(&Statement{ h: public_key_share.h.clone()}, &self.pp).is_ok() //verify proofs
+                        && share_proof.proof.verify(&Statement{ h: public_key_share.h.clone()}, &self.share_key_pair.pk.pp).is_ok() //verify proofs
                 })
             .map(|(_,share_proof)| share_proof.pk.clone())
             .collect();
@@ -128,8 +133,8 @@ impl Party {
     pub fn construct_public_key_from_valid_shares(&self, pk_list: Vec<ElGamalPublicKey>)-> ElGamalPublicKey{
         let global_pk =
             pk_list.iter().fold(BigInt::one(), | prod, key_share | prod * &key_share.h)
-                .mod_floor(&self.pp.p);
-        ElGamalPublicKey { pp: self.pp.clone(), h: global_pk}
+                .mod_floor(&self.share_key_pair.pk.pp.p);
+        ElGamalPublicKey { pp: self.share_key_pair.pk.pp.clone(), h: global_pk}
     }
 
     pub fn construct_shared_public_key(&self, comm_list: Vec<CommitmentKeyGen>, proof_list: Vec<KeyProof>)-> ElGamalPublicKey{
@@ -140,15 +145,15 @@ impl Party {
 
     //------ Distributed El Gamal Decryption --------
     pub fn publish_shares_and_proofs_for_decryption(&self, cipher: &ElGamalCiphertext)-> DistDecryptEGMsg{
-        let a_i = BigInt::mod_pow(&cipher.c1, &self.private_share, &self.pp.p);
+        let a_i = BigInt::mod_pow(&cipher.c1, &self.share_key_pair.sk.x, &self.share_key_pair.pk.pp.p);
         let statement = DDHStatement{
-            pp: self.pp.clone(),
-            g1: self.pp.g.clone(),
-            h1: self.public_share.clone(),
+            pp: self.share_key_pair.pk.pp.clone(),
+            g1: self.share_key_pair.pk.pp.g.clone(),
+            h1: self.share_key_pair.pk.h.clone(),
             g2: cipher.c1.clone(),
             h2: a_i.clone()
         };
-        let witness = DDHWitness{ x: self.private_share.clone() };
+        let witness = DDHWitness{ x: self.share_key_pair.sk.x.clone() };
         let proof = DDHProof::prove(&witness, &statement);
         DistDecryptEGMsg{
             share: a_i,
@@ -159,9 +164,9 @@ impl Party {
 
     pub fn verify_proof_for_decryption(&self, cipher: &ElGamalCiphertext, share_and_proof: &DistDecryptEGMsg, party_index: i32)-> bool{
             let statement = DDHStatement{
-                pp: self.pp.clone(),
-                g1: self.pp.g.clone(),
-                h1: self.public_share.clone(),
+                pp: self.share_key_pair.pk.pp.clone(),
+                g1: self.share_key_pair.pk.pp.g.clone(),
+                h1: self.share_key_pair.pk.h.clone(),
                 g2: cipher.c1.clone(),
                 h2: share_and_proof.share.clone()
             };
@@ -194,9 +199,9 @@ mod test {
     pub fn test_generate_key_from_shares() {
         let group_id = SupportedGroups::FFDHE4096;
         let pp = ElGamalPP::generate_from_rfc7919(group_id);
-        let party_1 = Party::generate_share(&pp, 1);
-        let party_2 = Party::generate_share(&pp, 2);
-        let party_3 = Party::generate_share(&pp, 3);
+        let party_1 = DistElGamal::generate_share(&pp, 1);
+        let party_2 = DistElGamal::generate_share(&pp, 2);
+        let party_3 = DistElGamal::generate_share(&pp, 3);
 
         let mut parties = Vec::new();
         parties.push(&party_1);
@@ -215,7 +220,7 @@ mod test {
         let shared_public_key =
             party_1.construct_shared_public_key(commitments, shares_and_proofs);
         let shared_private_key = ElGamalPrivateKey {
-            x: (party_1.private_share + party_2.private_share + party_3.private_share).mod_floor(&pp.q),
+            x: (party_1.share_key_pair.sk.x + party_2.share_key_pair.sk.x + party_3.share_key_pair.sk.x).mod_floor(&pp.q),
             pp: pp.clone()
         };
         let encoded_msg = encoding_quadratic_residue(BigInt::from(17), &pp);
@@ -234,9 +239,9 @@ mod test {
     pub fn test_distributed_EG_decryption() {
         let group_id = SupportedGroups::FFDHE4096;
         let pp = ElGamalPP::generate_from_rfc7919(group_id);
-        let party_1 = Party::generate_share(&pp, 1);
-        let party_2 = Party::generate_share(&pp, 2);
-        let party_3 = Party::generate_share(&pp, 3);
+        let party_1 = DistElGamal::generate_share(&pp, 1);
+        let party_2 = DistElGamal::generate_share(&pp, 2);
+        let party_3 = DistElGamal::generate_share(&pp, 3);
 
         let mut parties = Vec::new();
         parties.push(&party_1);
@@ -278,7 +283,7 @@ mod test {
             panic!("no share has been validated");
         }
         println!("number of valid shares = {:?}", valid_shares_for_decryption.len());
-        let plain_text_msg = Party::decrypt_ciphertext_from_shares( encrypted_msg, valid_shares_for_decryption, &pp);
+        let plain_text_msg = DistElGamal::decrypt_ciphertext_from_shares( encrypted_msg, valid_shares_for_decryption, &pp);
         assert_eq!(encoded_msg, plain_text_msg);
     }
 }

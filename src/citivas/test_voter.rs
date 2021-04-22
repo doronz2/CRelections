@@ -9,6 +9,7 @@ pub mod test_voter {
     use crate::citivas::zkproofs::DvrpPublicInput;
     use crate::BigInt;
     use crate::citivas::entity::Entity;
+    use curv::arithmetic::traits::Samplable;
 
 
     #[test]
@@ -18,7 +19,7 @@ pub mod test_voter {
         let voter_number = 1;
         let params = &SystemParameters::create_supervisor(&pp);
         let voter = Voter::create(voter_number, &params);
-        let registrar = Registrar::create(0, &pp, params.num_of_voters, params.KTT.clone());
+        let registrar = Registrar::create(0, params.clone(),  params.KTT.clone());
         let share = registrar.create_credential_share();
         let dvrp_input = DvrpPublicInput::create_input(&voter.designation_key_pair.pk.h, registrar.get_pk(), &share.S_i_tag, &share.S_i);
         let cred_share_output = registrar.publish_credential_with_proof(&share, dvrp_input);
@@ -30,15 +31,15 @@ pub mod test_voter {
         let group_id = SupportedGroups::FFDHE4096;
         let pp = ElGamalPP::generate_from_rfc7919(group_id);
         let voter_number = 1;
-        let params = &SystemParameters::create_supervisor(&pp);
+        let params = SystemParameters::create_supervisor(&pp);
         let mut voter = Voter::create(voter_number, &params);
-        let registrar_1 = Registrar::create(0, &pp, params.num_of_voters, params.KTT.clone());
-        let registrar_2 = Registrar::create(0, &pp, params.num_of_voters, params.KTT.clone());
-        let registrar_3 = Registrar::create(0, &pp, params.num_of_voters, params.KTT.clone());
+        let registrar_1 = Registrar::create(0, params.clone(), params.KTT.clone());
+        let registrar_2 = Registrar::create(0, params.clone(),  params.KTT.clone());
+        let registrar_3 = Registrar::create(0, params.clone(),  params.KTT.clone());
 
-        let share_1 = registrar_1.create_credential_share_toy_1();
-        let share_2 = registrar_2.create_credential_share_toy_2();
-        let share_3 = registrar_2.create_credential_share_toy_2();
+        let share_1 = registrar_1.create_credential_share();
+        let share_2 = registrar_2.create_credential_share();
+        let share_3 = registrar_3.create_credential_share();
 
         let dvrp_input_1 = DvrpPublicInput::create_input(&voter.designation_key_pair.pk.h, registrar_1.get_pk(), &share_1.S_i_tag, &share_1.S_i);
         let dvrp_input_2 = DvrpPublicInput::create_input(&voter.designation_key_pair.pk.h, registrar_2.get_pk(), &share_2.S_i_tag, &share_2.S_i);
@@ -59,10 +60,10 @@ pub mod test_voter {
         let group_id = SupportedGroups::FFDHE4096;
         let pp = ElGamalPP::generate_from_rfc7919(group_id);
         let voter_number = 1;
-        let params = &SystemParameters::create_supervisor_toy(&pp);
+        let params = &SystemParameters::create_supervisor(&pp);
         let mut voter = Voter::create(voter_number, &params);
-        //let private_cred = encoding_quadratic_residue(sample_from!(&pp.p),&pp);
-        let private_cred = encoding_quadratic_residue(BigInt::from(3),&pp);
+        let private_cred = encoding_quadratic_residue(BigInt::sample_below(&pp.p),&pp);
+        //let private_cred = encoding_quadratic_residue(BigInt::from(3),&pp);
 
         voter.set_private_credential(private_cred);
         let candidate_index = 1;

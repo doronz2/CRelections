@@ -11,6 +11,7 @@ mod entity;
 mod registrar;
 mod tellers;
 mod dist_el_gamal;
+mod integration_test;
 
 
 

@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::citivas::zkproofs::{DvrpProof, DvrpPublicInput, DVRP_prover};
 use crate::citivas::entity::Entity;
+use crate::citivas::supervisor::SystemParameters;
 
 
 //use crate::macros;
@@ -21,16 +22,14 @@ pub struct RegistrationTeller {
 
 pub struct Registrar {
     registrar_index: usize,
-    pp: ElGamalPP,
+    params: SystemParameters,
     //key_pair: ElGamalKeyPair,
-    num_of_voters: usize,
     KTT: ElGamalPublicKey, //PK of the tellers (tally tellers)
-    cred_vec: Vec<CredentialShare>,
 }
 
 impl Entity for Registrar {
     fn get_pp(&self) -> &ElGamalPP {
-        &self.pp
+        &self.params.pp
     }
 
     fn get_pk(&self) -> &BigInt {
@@ -38,11 +37,11 @@ impl Entity for Registrar {
     }
 
     fn get_p(&self) -> &BigInt {
-        &self.pp.p
+        &self.params.pp.p
     }
 
     fn get_q(&self) -> &BigInt {
-        &self.pp.q
+        &self.params.pp.q
     }
 
     fn get_tally_pk(&self) -> &ElGamalPublicKey {
@@ -50,42 +49,36 @@ impl Entity for Registrar {
     }
 
     fn get_generator(&self) -> &BigInt {
-        &self.pp.g
+        &self.params.pp.g
     }
 }
 
 impl Registrar {
     pub fn create(
         registrar_index: usize,
-        pp: &ElGamalPP,
-        num_of_voters: usize,
+        params: SystemParameters,
         KTT: ElGamalPublicKey,
     ) -> Self {
         //PK of the tellers (tally tellers)
         Self {
             registrar_index,
-            pp: pp.clone(),
+            params: params.clone(),
             //key_pair,
-            num_of_voters,
             KTT,
-            cred_vec: vec![],
         }
     }
 
     pub fn create_toy(
         registrar_index: usize,
-        pp: &ElGamalPP,
-        num_of_voters: usize,
+        params: &SystemParameters,
         KTT: ElGamalPublicKey,
     ) -> Self {
         //PK of the tellers (tally tellers)
         Self {
             registrar_index,
-            pp: pp.clone(),
+            params: params.clone(),
             //key_pair,
-            num_of_voters,
             KTT,
-            cred_vec: vec![],
         }
     }
 }
@@ -125,7 +118,7 @@ impl CredetialShareOutput {
 
 impl Registrar {
     pub fn create_credential_share(&self) -> CredentialShare {
-        let pp = &self.pp.clone();
+        let pp = &self.params.pp.clone();
         let s_i = BigInt::sample_below(&pp.q);
         let r_i = BigInt::sample_below(&pp.q);
         let S_i_tag = ElGamal::encrypt_from_predefined_randomness(&s_i, &self.KTT, &r_i).unwrap();
@@ -147,7 +140,7 @@ impl Registrar {
     }
 
     pub fn create_credential_share_toy_1(&self) -> CredentialShare {
-        let pp = &self.pp.clone();
+        let pp = &self.params.pp.clone();
         let s_i = BigInt::from(1);
         let r_i = BigInt::sample_below(&pp.q);
         let S_i_tag = ElGamal::encrypt_from_predefined_randomness(&s_i, &self.KTT, &r_i).unwrap();
@@ -169,7 +162,7 @@ impl Registrar {
     }
 
     pub fn create_credential_share_toy_2(&self) -> CredentialShare {
-        let pp = &self.pp.clone();
+        let pp = &self.params.pp.clone();
         let s_i = BigInt::from(2);
         let r_i = BigInt::sample_below(&pp.q);
         let S_i_tag = ElGamal::encrypt_from_predefined_randomness(&s_i, &self.KTT, &r_i).unwrap();
@@ -223,7 +216,7 @@ pub fn check_credential_proof() {
     let group_id = SupportedGroups::FFDHE4096;
     let pp = &ElGamalPP::generate_from_rfc7919(group_id);
     let params = &SystemParameters::create_supervisor(&pp);
-    let registrar = Registrar::create(0, pp, params.num_of_voters.clone(), params.KTT.clone());
+    let registrar = Registrar::create(0, params.clone(),  params.KTT.clone());
     let share = registrar.create_credential_share();
     let voter_pk = &Voter::create(1, params).designation_key_pair.pk.h;
     let dvrp_input =
