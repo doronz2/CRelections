@@ -153,7 +153,7 @@ impl Teller{
 
         let reenc_proof_input = ReencProofInput{ c_list: params.encrypted_candidate_list.clone(), c: vote.es.clone()};
         let check_2 = reenc_proof_input.reenc_1_out_of_L_verifier(
-            &params.pp, &params.KTT, vote.pw,params.num_of_candidates
+            &params.pp, &params.KTT, &vote.pw,params.num_of_candidates
         );
 
         check_1 && check_2

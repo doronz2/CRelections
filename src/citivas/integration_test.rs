@@ -21,6 +21,7 @@ use crate::citivas::zkproofs::{VotePfPublicInput, ReencProofInput, DvrpPublicInp
 use crate::SupportedGroups;
 use crate::citivas::registrar::Registrar;
 use crate::citivas::entity::Entity;
+use crate::citivas::dist_el_gamal::{DistDecryptEGMsg, DistElGamal};
 
 
 pub struct Results{
@@ -58,14 +59,14 @@ pub fn integration_test(){
     tellers.push(&teller_2);
     tellers.push(&teller_3);
 
-    //each teller publish a commitment to the share
-    let commitments = shares.clone()
+    //each teller publishes a commitment to the share
+    let commitments = &tellers
         .iter()
-        .map(|&party| party.get_share().publish_commitment_key_gen())
+        .map(|&teller| teller.get_share().publish_commitment_key_gen())
         .collect();
 
     //each teller publish a proof to the share that is consistent with with the commitment it published
-    let shares_and_proofs = shares.clone()
+    let shares_and_proofs = tellers.clone()
         .iter()
         .map(|&party| party.clone().get_share().publish_proof_for_key_share())
         .collect();
@@ -118,34 +119,54 @@ pub fn integration_test(){
     let cred_share_output_2_voter_3 = registrar_2.publish_credential_with_proof(&credential_share_2_for_voter_3, dvrp_input_voter_3_cred_2);
 
     //Each voter combines its credential shares
-    let voter_1_private_credential = voter.construct_private_credential_from_shares(
+    let voter_1_private_credential = voter_1.construct_private_credential_from_shares(
         vec![cred_share_output_1_voter_1, cred_share_output_2_voter_1],
-        vec![credential_share_1_for_voter_1.S_i, credential_share_2_for_voter_1.S_i, bad_encryption]);
+        vec![credential_share_1_for_voter_1.S_i, credential_share_2_for_voter_1.S_i]);
 
-    let voter_2_private_credential = voter.construct_private_credential_from_shares(
+    let voter_2_private_credential = voter_2.construct_private_credential_from_shares(
         vec![cred_share_output_1_voter_2, cred_share_output_2_voter_2],
-        vec![credential_share_1_for_voter_2.S_i, credential_share_2_for_voter_2.S_i, bad_encryption]);
+        vec![credential_share_1_for_voter_2.S_i, credential_share_2_for_voter_2.S_i]);
 
-    let voter_3_private_credential = voter.construct_private_credential_from_shares(
+    let voter_3_private_credential = voter_3.construct_private_credential_from_shares(
         vec![cred_share_output_1_voter_3, cred_share_output_2_voter_3],
-        vec![credential_share_1_for_voter_3.S_i, credential_share_2_for_voter_3.S_i, bad_encryption]);
+        vec![credential_share_1_for_voter_3.S_i, credential_share_2_for_voter_3.S_i]);
 
-    voter_1.set_private_credential(private_cred);
-    voter_2.set_private_credential(private_cred);
-    voter_3.set_private_credential(private_cred);
+    voter_1.set_private_credential(voter_1_private_credential.unwrap());
+    voter_2.set_private_credential(voter_2_private_credential.unwrap());
+    voter_3.set_private_credential(voter_3_private_credential.unwrap());
 
     //voting among candidates!!!!
     let vote_1 = voter_1.vote(candidate_1, &params.clone());
     let vote_2 = voter_2.vote(candidate_3, &params.clone());
     let vote_3 = voter_3.vote(candidate_1, &params.clone());
 
-    assert!(Voter::check_votes(&voter_1, vote_1, &params));
-    assert!(Voter::check_votes(&voter_2, vote_2, &params));
-    assert!(Voter::check_votes(&voter_3, vote_3, &params));
+    assert!(Voter::check_votes(&voter_1, &vote_1, &params));
+    assert!(Voter::check_votes(&voter_2, &vote_2, &params));
+    assert!(Voter::check_votes(&voter_3, &vote_3, &params));
+
+
+
+    let shares_and_proofs: Vec<DistDecryptEGMsg> = tellers
+        .iter()
+        .map(|teller| teller.get_share().publish_shares_and_proofs_for_decryption(&vote_1.ev))
+        .collect();
+    let valid_shares_for_decryption: Vec<BigInt> = tellers
+        .iter()
+        .zip(shares_and_proofs)
+        .filter(|(teller, share_and_proof)| teller.get_share().verify_proof_for_decryption(&vote_1.ev, share_and_proof, teller.party_index) )
+        .map(|(_, shares_and_proof)| shares_and_proof.share)
+        .collect();
+    if valid_shares_for_decryption.len() == 0{
+        panic!("no share has been validated");
+    }
+    println!("number of valid shares = {:?}", valid_shares_for_decryption.len());
+    let plain_text_msg = DistElGamal::combine_shares_and_decrypt( &vote_1.ev, valid_shares_for_decryption, &pp);
+    assert_eq!(candidate_1, plain_text_msg);
+
 
     //left to do
     //tellers decrypt vote
-    //crating array of the votes and decrlaring the winner
+    //crating array of the votes and declaring the winner
 
     /*
     let shared_private_key = ElGamalPrivateKey {

@@ -68,7 +68,7 @@ pub mod test_voter {
         voter.set_private_credential(private_cred);
         let candidate_index = 1;
         let vote = voter.vote(candidate_index, &params.clone());
-        assert!(Voter::check_votes(&voter, vote, &params));
+        assert!(Voter::check_votes(&voter, &vote, &params));
     }
 
 }

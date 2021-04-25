@@ -42,7 +42,7 @@ pub mod test_zk_proofs {
         C_list[t] = reencrypt(&cipher,&enc_key);
         let input = ReencProofInput{ c_list: C_list, c: ctx.clone() };
         let proof = input.reenc_in_list_1_out_of_L_prove(&pp,&key_pair.pk, t, enc_key, L);
-        let verification = input.reenc_1_out_of_L_verifier(&pp,&key_pair.pk, proof, L);
+        let verification = input.reenc_1_out_of_L_verifier(&pp, &key_pair.pk, &proof, L);
         assert!(verification);
     }
 
@@ -63,7 +63,7 @@ pub mod test_zk_proofs {
         let ctx = reencrypt(&c_t, &nonce);
          let input = ReencProofInput{ c_list: C_list, c: ctx };
         let proof = input.reenc_out_of_list_1_out_of_L_prove(&pp,&key_pair.pk, t, nonce, L);
-        let verification = input.reenc_1_out_of_L_verifier(&pp,&key_pair.pk, proof, L);
+        let verification = input.reenc_1_out_of_L_verifier(&pp,&key_pair.pk, &proof, L);
         assert!(verification);
     }
 

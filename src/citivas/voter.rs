@@ -181,26 +181,24 @@ impl Voter{
 
     pub fn vote(&self,  candidate_index: usize, params: &SystemParameters)-> Vote{
         assert!(&self.private_credential.is_some());
-        assert!(&self.private_credential.clone().unwrap()< &params.pp.q);
-
-        let nonce_for_encrypting_credentials = BigInt::sample_below(&params.pp.q);
-        let ev = ElGamal::encrypt_from_predefined_randomness(
+        let nonce_for_encrypting_credentials = sample_from!(&self.get_q());
+        let es = ElGamal::encrypt_from_predefined_randomness(
             &self.private_credential.clone().unwrap(), &self.KTT, &nonce_for_encrypting_credentials)
             .unwrap();//encryption of the credential
         let nonce_for_reecryption = BigInt::sample_below(&self.get_q());
-        let es =reencrypt(&ElGamalCipherTextAndPK {
+        let ev =reencrypt(&ElGamalCipherTextAndPK {
             ctx: self.encrypted_candidate_list.get(candidate_index).unwrap().clone(),
             pk: &self.KTT
         },
-            &nonce_for_reecryption
+                          &nonce_for_reecryption
         );//reencryption of the vote with the tellers public key
-        let reenc_proof_input = ReencProofInput{ c_list: self.encrypted_candidate_list.clone(), c: es.clone()};
+        let reenc_proof_input = ReencProofInput{ c_list: self.encrypted_candidate_list.clone(), c: ev.clone()};
         let pw = reenc_proof_input.reenc_out_of_list_1_out_of_L_prove(
             &self.get_pp(), &self.KTT, candidate_index,
             nonce_for_reecryption.clone(), params.num_of_candidates);
         let vote_pf_input = VotePfPublicInput{
-            encrypted_credential: ev.clone(),
-            encrypted_choice: es.clone(),
+            encrypted_credential: es.clone(),
+            encrypted_choice: ev.clone(),
             eid: BigInt::from(self.eid as i32)
         };
         let witness = VoteWitness{ alpha_1: nonce_for_encrypting_credentials, alpha_2: &self.nonce_for_candidate_encryption + nonce_for_reecryption.clone()};
@@ -208,20 +206,22 @@ impl Voter{
         Vote{ev, es, pf, pw}
     }
 
+
     // Verify the proofs of votepf and reencryption
     // move function to tallies
-    pub fn check_votes(voter: &Voter, vote: Vote, params: &SystemParameters) -> bool{
-        let vote_pf_input = VotePfPublicInput{
+    pub fn check_votes(voter: &Voter, vote: &Vote, params: &SystemParameters) -> bool {
+        let vote_pf_input = VotePfPublicInput {
             encrypted_credential: vote.ev.clone(),
             encrypted_choice: vote.es.clone(),
-            eid:BigInt::from(voter.eid)
+            eid: BigInt::from(voter.eid)
         };
-        let check_1 = vote.pf.votepf_verifier(&vote_pf_input,&params);
-        let reenc_proof_input = ReencProofInput{ c_list: voter.encrypted_candidate_list.clone(), c: vote.es.clone()};
+        let check_1 = vote.pf.votepf_verifier(&vote_pf_input, &params);
+        let reenc_proof_input = ReencProofInput { c_list: voter.encrypted_candidate_list.clone(), c: vote.clone().ev };
         let check_2 = reenc_proof_input.reenc_1_out_of_L_verifier(
-            &voter.get_pp(), &voter.KTT,vote.pw,params.num_of_candidates
+            &voter.get_pp(), &voter.KTT, &vote.pw, params.num_of_candidates
         );
         check_1 && check_2
     }
 }
+
 

@@ -205,7 +205,7 @@ impl ReencProofInput {
         ReencProof { d: list_d_i.try_into().unwrap(), r: list_r_i.try_into().unwrap() }
     }
 
-    pub fn reenc_1_out_of_L_verifier(&self, pp: &ElGamalPP, pk: &ElGamalPublicKey, proof: ReencProof, L: usize) -> bool {
+    pub fn reenc_1_out_of_L_verifier(&self, pp: &ElGamalPP, pk: &ElGamalPublicKey, proof: &ReencProof, L: usize) -> bool {
         let mut list_a_i = Vec::with_capacity(L);
         let mut list_b_i = Vec::with_capacity(L);
 
