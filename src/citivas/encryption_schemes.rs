@@ -165,6 +165,39 @@ pub fn reencrypt(c: &ElGamalCipherTextAndPK, random_nonce: &BigInt) -> ElGamalCi
     }
 }
 
+
+//The only difference between this function and Zengo's is that here we exect to get a quadratic residue encoding, so that
+// m is taken from z_p and not z_q
+pub fn encrypt_from_predefined_randomness(
+    m: &BigInt,
+    pk: &ElGamalPublicKey,
+    randomness: &BigInt,
+) -> Result<ElGamalCiphertext, ElGamalError> {
+    //test 0<m<p
+    if m.ge(&pk.pp.p) || m.le(&BigInt::zero()) {
+        println!("1!");
+        println!("m:{:?}",m);
+        println!("p:{:?}",pk.pp.p);
+
+        return Err(ElGamalError::EncryptionError);
+    }
+    if randomness.ge(&pk.pp.q) || randomness.le(&BigInt::zero()) {
+        println!("2!");
+        return Err(ElGamalError::EncryptionError);
+    }
+    let y = randomness;
+    let c1 = BigInt::mod_pow(&pk.pp.g, y, &pk.pp.p);
+    let s = BigInt::mod_pow(&pk.h, y, &pk.pp.p);
+    //  let sm = &s * &m;
+    let c2 = BigInt::mod_mul(&s, &m, &pk.pp.p);
+    Ok(ElGamalCiphertext {
+        c1,
+        c2,
+        pp: pk.pp.clone(),
+    })
+}
+
+
 pub fn reencrypt_disjoint_structs(
     c: &ElGamalCiphertext,
     pk: ElGamalPublicKey,

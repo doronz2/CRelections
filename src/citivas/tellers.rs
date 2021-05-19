@@ -26,7 +26,8 @@ const IN: bool = false;
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Teller{
     share: DistElGamal,
-    sp: SystemParameters
+    sp: SystemParameters,
+    pub teller_index: i32
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -46,7 +47,8 @@ impl Teller{
         let share = DistElGamal::generate_share(&sp.pp, teller_index);
         Teller{
             share,
-            sp
+            sp,
+            teller_index
         }
     }
 /*
@@ -143,7 +145,7 @@ impl Teller{
 
     // Verify the proofs of votepf and reencryption
     // move function to tallies
-    pub fn check_votes(vote: Vote, params: &SystemParameters) -> bool{
+    pub fn check_votes(vote: Vote, params: &SystemParameters, pk: &ElGamalPublicKey) -> bool{
         let vote_pf_input = VotePfPublicInput{
             encrypted_credential: vote.ev.clone(),
             encrypted_choice: vote.es.clone(),
@@ -152,8 +154,9 @@ impl Teller{
         let check_1 = vote.pf.votepf_verifier(&vote_pf_input,&params);
 
         let reenc_proof_input = ReencProofInput{ c_list: params.encrypted_candidate_list.clone(), c: vote.es.clone()};
+
         let check_2 = reenc_proof_input.reenc_1_out_of_L_verifier(
-            &params.pp, &params.KTT, &vote.pw,params.num_of_candidates
+            &params.pp, &pk, &vote.pw,params.num_of_candidates
         );
 
         check_1 && check_2

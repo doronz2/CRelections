@@ -21,7 +21,7 @@ use crate::citivas::zkproofs::{VotePfPublicInput, ReencProofInput, DvrpPublicInp
 use crate::SupportedGroups;
 use crate::citivas::registrar::Registrar;
 use crate::citivas::entity::Entity;
-use crate::citivas::dist_el_gamal::{DistDecryptEGMsg, DistElGamal};
+use crate::citivas::dist_el_gamal::{DistDecryptEGMsg, DistElGamal, CommitmentKeyGen, KeyProof};
 
 
 pub struct Results{
@@ -44,9 +44,9 @@ pub fn integration_test(){
 
     //Three candidates
 
-    let candidate_1 = 1;
-    let candidate_2 = 2;
-    let candidate_3 = 3;
+    let candidate_1: i32 = 0;
+    let candidate_2: i32 = 1;
+    let candidate_3: i32 = 2;
 
     // Each teller generates a share (while being generated)
     let teller_1 = Teller::create_teller(params.clone(),0);
@@ -60,13 +60,13 @@ pub fn integration_test(){
     tellers.push(&teller_3);
 
     //each teller publishes a commitment to the share
-    let commitments = &tellers
+    let commitments: Vec<CommitmentKeyGen> = tellers
         .iter()
         .map(|&teller| teller.get_share().publish_commitment_key_gen())
         .collect();
 
     //each teller publish a proof to the share that is consistent with with the commitment it published
-    let shares_and_proofs = tellers.clone()
+    let shares_and_proofs: Vec<KeyProof> = tellers.clone()
         .iter()
         .map(|&party| party.clone().get_share().publish_proof_for_key_share())
         .collect();
@@ -74,13 +74,13 @@ pub fn integration_test(){
     //each teller construct the public key from the shares
 
     let shared_public_key =
-        teller_1.get_share().construct_shared_public_key(commitments, shares_and_proofs);
+        teller_1.get_share().construct_shared_public_key(commitments.clone(), shares_and_proofs.clone());
 
     let shared_public_key_2 =
-        teller_2.get_share().construct_shared_public_key(commitments, shares_and_proofs);
+        teller_2.get_share().construct_shared_public_key(commitments.clone(), shares_and_proofs.clone());
 
     let shared_public_key_3 =
-        teller_3.get_share().construct_shared_public_key(commitments, shares_and_proofs);
+        teller_3.get_share().construct_shared_public_key(commitments.clone(), shares_and_proofs.clone());
 
 
     assert_eq!(shared_public_key, shared_public_key_2);
@@ -90,8 +90,13 @@ pub fn integration_test(){
     let registrar_2 = Registrar::create(1, params.clone(),  shared_public_key.clone());
 
     let credential_share_1_for_voter_1 = registrar_1.create_credential_share();
+    println!( "create s_i: {:?} ", credential_share_1_for_voter_1.s_i);
+    println!( "create r_i: {:?} ", credential_share_1_for_voter_1.r_i);
+    println!( "create KTT: {:?} ", registrar_1.get_pk());
+
     let credential_share_1_for_voter_2 = registrar_1.create_credential_share();
     let credential_share_1_for_voter_3 = registrar_1.create_credential_share();
+    println!("credential_share_1_for_voter_3 {:?}", credential_share_1_for_voter_3);
 
     let credential_share_2_for_voter_1 = registrar_2.create_credential_share();
     let credential_share_2_for_voter_2 = registrar_2.create_credential_share();
@@ -99,9 +104,9 @@ pub fn integration_test(){
 
 
 
-    let mut voter_1 = Voter::create(0, params);
-    let mut voter_2 = Voter::create(1, params);
-    let mut voter_3 = Voter::create(2, params);
+    let mut voter_1 = Voter::create(0, params, &shared_public_key);
+    let mut voter_2 = Voter::create(1, params, &shared_public_key);
+    let mut voter_3 = Voter::create(2, params, &shared_public_key);
 
     let dvrp_input_voter_1_cred_1 = DvrpPublicInput::create_input(&voter_1.get_pk(), registrar_1.get_pk(), &credential_share_1_for_voter_1.S_i_tag, &credential_share_1_for_voter_1.S_i);
     let dvrp_input_voter_1_cred_2 = DvrpPublicInput::create_input(&voter_1.get_pk(), registrar_2.get_pk(), &credential_share_2_for_voter_1.S_i_tag, &credential_share_2_for_voter_1.S_i);
@@ -122,7 +127,7 @@ pub fn integration_test(){
     let voter_1_private_credential = voter_1.construct_private_credential_from_shares(
         vec![cred_share_output_1_voter_1, cred_share_output_2_voter_1],
         vec![credential_share_1_for_voter_1.S_i, credential_share_2_for_voter_1.S_i]);
-
+    println!("voter_1_private_credential {:?}", voter_1_private_credential);
     let voter_2_private_credential = voter_2.construct_private_credential_from_shares(
         vec![cred_share_output_1_voter_2, cred_share_output_2_voter_2],
         vec![credential_share_1_for_voter_2.S_i, credential_share_2_for_voter_2.S_i]);
@@ -136,9 +141,9 @@ pub fn integration_test(){
     voter_3.set_private_credential(voter_3_private_credential.unwrap());
 
     //voting among candidates!!!!
-    let vote_1 = voter_1.vote(candidate_1, &params.clone());
-    let vote_2 = voter_2.vote(candidate_3, &params.clone());
-    let vote_3 = voter_3.vote(candidate_1, &params.clone());
+    let vote_1 = voter_1.vote(candidate_1 as usize, &params.clone());
+    let vote_2 = voter_2.vote(candidate_3 as usize, &params.clone());
+    let vote_3 = voter_3.vote(candidate_1 as usize, &params.clone());
 
     assert!(Voter::check_votes(&voter_1, &vote_1, &params));
     assert!(Voter::check_votes(&voter_2, &vote_2, &params));
@@ -153,15 +158,15 @@ pub fn integration_test(){
     let valid_shares_for_decryption: Vec<BigInt> = tellers
         .iter()
         .zip(shares_and_proofs)
-        .filter(|(teller, share_and_proof)| teller.get_share().verify_proof_for_decryption(&vote_1.ev, share_and_proof, teller.party_index) )
+        .filter(|(teller, share_and_proof)| teller.get_share().verify_proof_for_decryption(&vote_1.ev, share_and_proof, teller.teller_index) )
         .map(|(_, shares_and_proof)| shares_and_proof.share)
         .collect();
     if valid_shares_for_decryption.len() == 0{
         panic!("no share has been validated");
     }
     println!("number of valid shares = {:?}", valid_shares_for_decryption.len());
-    let plain_text_msg = DistElGamal::combine_shares_and_decrypt( &vote_1.ev, valid_shares_for_decryption, &pp);
-    assert_eq!(candidate_1, plain_text_msg);
+    let plain_text_msg = DistElGamal::combine_shares_and_decrypt( vote_1.ev, valid_shares_for_decryption, &pp);
+    assert_eq!(BigInt::from(candidate_1), plain_text_msg);
 
 
     //left to do

@@ -84,10 +84,10 @@ impl DistElGamal {
         self.share_key_pair.sk.x
     }
 
-    pub fn publish_commitment_key_gen(&self) -> &CommitmentKeyGen {
+    pub fn publish_commitment_key_gen(&self) -> CommitmentKeyGen {
 
         let comm = hash_sha256::HSha256::create_hash(&[&self.share_key_pair.pk.h]);
-        &CommitmentKeyGen{comm, party_index: self.party_index}
+        CommitmentKeyGen{comm, party_index: self.party_index}
         }
 
 
@@ -102,7 +102,7 @@ impl DistElGamal {
 
 
 //The following function verifies the DLOG proofs of the public key shares and their commitments
-    pub fn create_valid_shares_list(&self, comm_list: Vec<&CommitmentKeyGen>, proof_list: Vec<KeyProof>) -> Vec<ElGamalPublicKey>{
+    pub fn create_valid_shares_list(&self, comm_list: Vec<CommitmentKeyGen>, proof_list: Vec<KeyProof>) -> Vec<ElGamalPublicKey>{
         if comm_list.len()!= proof_list.len() {
             panic!("Mismatch size between commitment list and proof list");
 
@@ -137,9 +137,9 @@ impl DistElGamal {
         ElGamalPublicKey { pp: self.share_key_pair.pk.pp.clone(), h: global_pk}
     }
 
-    pub fn construct_shared_public_key(&self, comm_list: &Vec<&CommitmentKeyGen>, proof_list: Vec<KeyProof>)-> ElGamalPublicKey{
+    pub fn construct_shared_public_key(&self, comm_list: Vec<CommitmentKeyGen>, proof_list: Vec<KeyProof>)-> ElGamalPublicKey{
         let valid_shares_list = &self.create_valid_shares_list(
-            *comm_list, proof_list);
+            comm_list, proof_list);
        self.construct_public_key_from_valid_shares(valid_shares_list)
     }
 
@@ -177,11 +177,11 @@ impl DistElGamal {
             else {true}
     }
 
-    pub fn combine_shares_and_decrypt( cipher: &ElGamalCiphertext, shares: Vec<BigInt>, pp: &ElGamalPP)-> BigInt{
+    pub fn combine_shares_and_decrypt( cipher: ElGamalCiphertext, shares: Vec<BigInt>, pp: &ElGamalPP)-> BigInt{
         let A = shares.iter()
             .fold( BigInt::one(), |prod, share| prod * share)
             .mod_floor(&pp.p);
-        let decrypted_text = (*cipher.c2 * A.invert(&pp.p).unwrap()).mod_floor(&pp.p);
+        let decrypted_text = (cipher.clone().c2 * A.invert(&pp.p).unwrap()).mod_floor(&pp.p);
         decrypted_text
 
     }

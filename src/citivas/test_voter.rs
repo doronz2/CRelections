@@ -1,6 +1,6 @@
 #[cfg(test)]
 pub mod test_voter {
-    use crate::{SupportedGroups, ElGamalPP, ElGamal};
+    use crate::{SupportedGroups, ElGamalPP, ElGamal, ElGamalPublicKey};
     use crate::citivas::encryption_schemes::
     {encoding_quadratic_residue};
     use crate::citivas::supervisor::SystemParameters;
@@ -18,8 +18,12 @@ pub mod test_voter {
         let pp = ElGamalPP::generate_from_rfc7919(group_id);
         let voter_number = 1;
         let params = &SystemParameters::create_supervisor(&pp);
-        let voter = Voter::create(voter_number, &params);
-        let registrar = Registrar::create(0, params.clone(),  params.KTT.clone());
+        let pk =  ElGamalPublicKey {
+            pp,
+            h: BigInt::from(4)
+        };
+        let voter = Voter::create(voter_number, &params, &pk);
+        let registrar = Registrar::create(0, params.clone(),  pk.clone());
         let share = registrar.create_credential_share();
         let dvrp_input = DvrpPublicInput::create_input(&voter.designation_key_pair.pk.h, registrar.get_pk(), &share.S_i_tag, &share.S_i);
         let cred_share_output = registrar.publish_credential_with_proof(&share, dvrp_input);
@@ -32,10 +36,14 @@ pub mod test_voter {
         let pp = ElGamalPP::generate_from_rfc7919(group_id);
         let voter_number = 1;
         let params = SystemParameters::create_supervisor(&pp);
-        let mut voter = Voter::create(voter_number, &params);
-        let registrar_1 = Registrar::create(0, params.clone(), params.KTT.clone());
-        let registrar_2 = Registrar::create(0, params.clone(),  params.KTT.clone());
-        let registrar_3 = Registrar::create(0, params.clone(),  params.KTT.clone());
+        let pk =  ElGamalPublicKey {
+            pp,
+            h: BigInt::from(4)
+        };
+        let mut voter = Voter::create(voter_number, &params, &pk);
+        let registrar_1 = Registrar::create(0, params.clone(), pk.clone());
+        let registrar_2 = Registrar::create(0, params.clone(),  pk.clone());
+        let registrar_3 = Registrar::create(0, params.clone(),  pk.clone());
 
         let share_1 = registrar_1.create_credential_share();
         let share_2 = registrar_2.create_credential_share();
@@ -50,9 +58,10 @@ pub mod test_voter {
         let cred_share_output_3 = registrar_3.publish_credential_with_proof(&share_3, dvrp_input_3);
         //this bad share of registrar 3 should not be counted as it's dvrp proof does not pass verification
         let bad_encryption = ElGamal::encrypt(&BigInt::from(1234),&voter.designation_key_pair.pk).unwrap();
-
-        let _private_credential = voter.construct_private_credential_from_shares(
+        let private_credential = voter.construct_private_credential_from_shares(
             vec![cred_share_output_1, cred_share_output_2, cred_share_output_3], vec![share_1.S_i, share_2.S_i, bad_encryption]);
+
+        println!("private_credential {:?}", private_credential);
     }
 
     #[test]
@@ -61,7 +70,11 @@ pub mod test_voter {
         let pp = ElGamalPP::generate_from_rfc7919(group_id);
         let voter_number = 1;
         let params = &SystemParameters::create_supervisor(&pp);
-        let mut voter = Voter::create(voter_number, &params);
+        let pk =  ElGamalPublicKey {
+            pp: pp.clone(),
+            h: BigInt::from(4)
+        };
+        let mut voter = Voter::create(voter_number, &params, &pk);
         let private_cred = encoding_quadratic_residue(BigInt::sample_below(&pp.p),&pp);
         //let private_cred = encoding_quadratic_residue(BigInt::from(3),&pp);
 

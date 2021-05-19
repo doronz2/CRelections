@@ -120,6 +120,7 @@ impl Registrar {
     pub fn create_credential_share(&self) -> CredentialShare {
         let pp = &self.params.pp.clone();
         let s_i = BigInt::sample_below(&pp.q);
+        // let s_i = encoding_quadratic_residue(BigInt::sample_below(&pp.q);
         let r_i = BigInt::sample_below(&pp.q);
         let S_i_tag = ElGamal::encrypt_from_predefined_randomness(&s_i, &self.KTT, &r_i).unwrap();
         let eta = BigInt::sample_below(&pp.q);
@@ -214,11 +215,15 @@ use super::*;
 //This checks using DVRP that S’_i is a reencryption of S_i using DVRP
 pub fn check_credential_proof() {
     let group_id = SupportedGroups::FFDHE4096;
-    let pp = &ElGamalPP::generate_from_rfc7919(group_id);
+    let pp = ElGamalPP::generate_from_rfc7919(group_id);
     let params = &SystemParameters::create_supervisor(&pp);
-    let registrar = Registrar::create(0, params.clone(),  params.KTT.clone());
+        let pk =  ElGamalPublicKey {
+            pp,
+            h: BigInt::from(4)
+        };
+    let registrar = Registrar::create(0, params.clone(),  pk.clone());
     let share = registrar.create_credential_share();
-    let voter_pk = &Voter::create(1, params).designation_key_pair.pk.h;
+    let voter_pk = &Voter::create(1, params, &pk).designation_key_pair.pk.h;
     let dvrp_input =
         DvrpPublicInput::create_input(voter_pk, registrar.get_pk(), &share.S_i_tag, &share.S_i);
     let cred_share_output = registrar.publish_credential_with_proof(&share, dvrp_input.clone());

@@ -8,6 +8,7 @@ pub mod test_zk_proofs {
     use crate::citivas::entity::Entity;
     use crate::BigInt;
     use curv::arithmetic::traits::{Samplable, Modulo};
+    use elgamal::ElGamalPublicKey;
 
 
     #[test]
@@ -17,8 +18,12 @@ pub mod test_zk_proofs {
         let witness = VoteWitness::generate_random_witness(&pp);
         let inputPF = VotePfPublicInput::generate_random_input(&pp, &witness);
         let voter_number = 1;
+        let pk =  ElGamalPublicKey {
+            pp: pp.clone(),
+            h: BigInt::from(4)
+        };
         let params = &SystemParameters::create_supervisor(&pp);
-        let voter = Voter::create(voter_number, params);
+        let voter = Voter::create(voter_number, params, &pk);
         let proof  = inputPF.votepf_prover( witness, &params,);
         let verification = proof.votepf_verifier(&inputPF,&params);
         assert!(verification);

@@ -11,14 +11,13 @@ use curv::arithmetic::traits::Samplable;
 
 use serde::{Deserialize, Serialize};
 
-use crate::citivas::encryption_schemes::{reencrypt, ElGamalCipherTextAndPK};
+use crate::citivas::encryption_schemes::{reencrypt, encrypt_from_predefined_randomness, ElGamalCipherTextAndPK};
 
 
 use crate::citivas::supervisor::{SystemParameters};
 
 use crate::citivas::entity::Entity;
 use crate::citivas::zkproofs::*;
-
 use crate::citivas::registrar::{CredetialShareOutput};
 
 
@@ -73,7 +72,7 @@ impl Voter {
 
 
 
-    pub fn create(voter_number: usize, params: &SystemParameters) -> Self {
+    pub fn create(voter_number: usize, params: &SystemParameters, sharedPK: &ElGamalPublicKey) -> Self {
         let key_pair = ElGamalKeyPair::generate(&params.pp);
         //  let key_pair= ElGamalKeyPair{ pk: ElGamalPublicKey { pp:pp.clone(), h: BigInt::from(13) }, sk: ElGamalPrivateKey{ pp:pp.clone(), x: BigInt::from(29) } };
         Self {
@@ -82,14 +81,14 @@ impl Voter {
             pp: params.pp.clone(),
             private_credential: None,
             nonce_for_candidate_encryption: params.nonce_for_candidate_encryption.clone(),
-            KTT: params.KTT.clone(),
+            KTT: sharedPK.clone(),
             chosen_candidate: None,
             eid: params.eid,
             encrypted_candidate_list: params.encrypted_candidate_list.clone()
         }
     }
 
-    pub fn create_voter_from_given_sk(voter_number: usize, pp: ElGamalPP, x: BigInt, params: SystemParameters) -> Self {
+    pub fn create_voter_from_given_sk(voter_number: usize, pp: ElGamalPP, x: BigInt, params: SystemParameters, public_key: ElGamalPublicKey) -> Self {
         let h = BigInt::mod_pow(&pp.g, &x, &pp.p);
         let pk = ElGamalPublicKey { pp: pp.clone(), h };
         let sk = ElGamalPrivateKey { pp: pp.clone(), x };
@@ -100,7 +99,7 @@ impl Voter {
             pp: params.pp,
             private_credential: None,
             nonce_for_candidate_encryption: params.nonce_for_candidate_encryption,
-            KTT: params.KTT,
+            KTT: public_key.clone(),
             chosen_candidate: None,
             eid: params.eid,
             encrypted_candidate_list: vec![]
@@ -150,7 +149,10 @@ impl Voter{
          ) -> bool {
         let verification_1: bool =
             cred_share.S_i_tag ==
-                ElGamal::encrypt_from_predefined_randomness(&cred_share.s_i, &self.KTT, &cred_share.r_i).unwrap();
+               encrypt_from_predefined_randomness(&cred_share.s_i, &self.KTT, &cred_share.r_i).unwrap();
+        println!("s_i  = {:?}", &cred_share.s_i);
+        println!("r_i  = {:?}", &cred_share.r_i);
+        println!("KTT  = {:?}", &self.KTT.h);
         let verification_2 = DVRP_verifier(
             self, &cred_share.get_dvrp_input(&self.designation_key_pair.pk.h, S_i), &cred_share.dvrp_proof
         );
@@ -166,6 +168,7 @@ impl Voter{
                 self.verify_credentials(cred, S_i_vec.get(*registrar_index).unwrap()))
             .map(|(_,cred)| cred.clone().s_i)
             .fold(BigInt::zero(), |sum, i | sum + i);
+        println!("cred_constructed_from_valid_shares {:?}", cred_constructed_from_valid_shares);
         Some(cred_constructed_from_valid_shares)
     }
 
@@ -182,9 +185,14 @@ impl Voter{
     pub fn vote(&self,  candidate_index: usize, params: &SystemParameters)-> Vote{
         assert!(&self.private_credential.is_some());
         let nonce_for_encrypting_credentials = sample_from!(&self.get_q());
-        let es = ElGamal::encrypt_from_predefined_randomness(
+       // let es = ElGamal::encrypt_from_predefined_randomness(
+        //    &self.private_credential.clone().unwrap(), &self.KTT, &nonce_for_encrypting_credentials)
+         //   .unwrap();//encryption of the credential
+        println!("private credentials {:?}", &self.private_credential.clone());
+         let es = encrypt_from_predefined_randomness(
             &self.private_credential.clone().unwrap(), &self.KTT, &nonce_for_encrypting_credentials)
-            .unwrap();//encryption of the credential
+           .unwrap();//encryption of the credential
+
         let nonce_for_reecryption = BigInt::sample_below(&self.get_q());
         let ev =reencrypt(&ElGamalCipherTextAndPK {
             ctx: self.encrypted_candidate_list.get(candidate_index).unwrap().clone(),
@@ -216,10 +224,13 @@ impl Voter{
             eid: BigInt::from(voter.eid)
         };
         let check_1 = vote.pf.votepf_verifier(&vote_pf_input, &params);
+        println!( "check1 = {}", check_1 );
         let reenc_proof_input = ReencProofInput { c_list: voter.encrypted_candidate_list.clone(), c: vote.clone().ev };
         let check_2 = reenc_proof_input.reenc_1_out_of_L_verifier(
             &voter.get_pp(), &voter.KTT, &vote.pw, params.num_of_candidates
         );
+        println!( "check2 = {}", check_2 );
+
         check_1 && check_2
     }
 }
