@@ -192,9 +192,8 @@ impl Voter{
          let es = encrypt_from_predefined_randomness(
             &self.private_credential.clone().unwrap(), &self.KTT, &nonce_for_encrypting_credentials)
            .unwrap();//encryption of the credential
-
         let nonce_for_reecryption = BigInt::sample_below(&self.get_q());
-        let ev =reencrypt(&ElGamalCipherTextAndPK {
+        let ev = reencrypt(&ElGamalCipherTextAndPK {
             ctx: self.encrypted_candidate_list.get(candidate_index).unwrap().clone(),
             pk: &self.KTT
         },
@@ -219,8 +218,8 @@ impl Voter{
     // move function to tallies
     pub fn check_votes(voter: &Voter, vote: &Vote, params: &SystemParameters) -> bool {
         let vote_pf_input = VotePfPublicInput {
-            encrypted_credential: vote.ev.clone(),
-            encrypted_choice: vote.es.clone(),
+            encrypted_credential: vote.es.clone(),
+            encrypted_choice: vote.ev.clone(),
             eid: BigInt::from(voter.eid)
         };
         let check_1 = vote.pf.votepf_verifier(&vote_pf_input, &params);
