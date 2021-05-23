@@ -183,6 +183,7 @@ impl Voter{
 
 
     pub fn vote(&self,  candidate_index: usize, params: &SystemParameters)-> Vote{
+
         assert!(&self.private_credential.is_some());
         let nonce_for_encrypting_credentials = sample_from!(&self.get_q());
        // let es = ElGamal::encrypt_from_predefined_randomness(

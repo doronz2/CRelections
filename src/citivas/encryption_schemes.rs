@@ -47,6 +47,20 @@ pub fn encoding_quadratic_residue(m: BigInt, pp: &elgamal::ElGamalPP) -> BigInt 
     };
 }
 
+pub fn decoding_quadratic_residue(encoded_vote: BigInt, pp: &elgamal::ElGamalPP) -> BigInt {
+    //modify m by adding 1 to m because the subgroup Gq does not include the value zero
+    //Be very aware of that as it may originate a bug somewhere in the code!!!
+    let encoded_modified = BigInt::mod_sub(&m, &BigInt::one(), &pp.p);
+    //check if m is QR according to Euler criterion
+    let test_if_QR = BigInt::mod_pow(&m_modified, &pp.q, &pp.p);
+    //if m is QR then return m otherwise return p - m
+    return if test_if_QR == BigInt::one() {
+        encoded_modified
+    } else {
+        BigInt::mod_sub(&pp.p, &encoded_vote, &pp.p)
+    };
+}
+
 impl NonMellableElgamal {
     //a simple EG encryption (a,b) that is signed with Schnorr (c,d)
     pub fn encrypt(m: &BigInt, y: &ElGamalPublicKey) -> Result<NonMellableElgamal, ElGamalError> {
