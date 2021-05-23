@@ -4,6 +4,7 @@ ElGamalPrivateKey,ElGamalPublicKey,ExponentElGamal};
 use curv::BigInt;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
+use crate::citivas::encryption_schemes::encoding_quadratic_residue;
 
 
 const O_STRING: &str ="5493847203023738409235948752";
@@ -47,12 +48,18 @@ impl SystemParameters {
     }
 
     pub fn set_encrypted_list(&mut self, shared_pk: ElGamalPublicKey) {
-        let encrypted_candidate_list = (1..NUMBER_OF_CANDIDATES + 1).
-            map(|candidate| ElGamal::encrypt_from_predefined_randomness(
-                &BigInt::from(candidate as i32), &shared_pk, &self.nonce_for_candidate_encryption
-            ).unwrap())
+        //encode the msg before encryption (QR encoding)
+        let encoded_candidates: Vec<BigInt> =  (0..NUMBER_OF_CANDIDATES).
+            map(|candidate| encoding_quadratic_residue(
+                BigInt::from(candidate as i32), &self.pp))
+            .collect();
+        let encrypted_candidate_list = (0..NUMBER_OF_CANDIDATES).
+            map(|candidate_index| ElGamal::encrypt_from_predefined_randomness(
+                &encoded_candidates.get(candidate_index).unwrap(),
+                &shared_pk, &self.nonce_for_candidate_encryption).unwrap())
             .collect();
         self.encrypted_candidate_list = Some(encrypted_candidate_list);
+        println!("encrypted list: {:?}", self.encrypted_candidate_list);
     }
     /*
     pub fn create_supervisor_toy(pp: &ElGamalPP) -> Self{

@@ -174,10 +174,12 @@ impl DistElGamal {
             if is_valid.is_err(){
                 panic!("share/proof of share {} for decryption is invalid", party_index);
             }
-            else {true}
+            else {
+                true
+            }
     }
 
-    pub fn combine_shares_and_decrypt( cipher: ElGamalCiphertext, shares: Vec<BigInt>, pp: &ElGamalPP)-> BigInt{
+    pub fn combine_shares_and_decrypt( cipher: &ElGamalCiphertext, shares: Vec<BigInt>, pp: &ElGamalPP)-> BigInt{
         let A = shares.iter()
             .fold( BigInt::one(), |prod, share| prod * share)
             .mod_floor(&pp.p);
@@ -283,7 +285,7 @@ mod test {
             panic!("no share has been validated");
         }
         println!("number of valid shares = {:?}", valid_shares_for_decryption.len());
-        let plain_text_msg = DistElGamal::combine_shares_and_decrypt( encrypted_msg, valid_shares_for_decryption, &pp);
+        let plain_text_msg = DistElGamal::combine_shares_and_decrypt( &encrypted_msg, valid_shares_for_decryption, &pp);
         assert_eq!(encoded_msg, plain_text_msg);
     }
 }

@@ -144,34 +144,41 @@ pub fn integration_test(){
     voter_3.set_private_credential(voter_3_private_credential.unwrap());
 
     //voting among candidates!!!!
-    let vote_1 = voter_1.vote(candidate_1 as usize, &params.clone());
-    let vote_2 = voter_2.vote(candidate_3 as usize, &params.clone());
+    let vote_1 = voter_1.vote(candidate_3 as usize, &params.clone());
+    let vote_2 = voter_2.vote(candidate_1 as usize, &params.clone());
     let vote_3 = voter_3.vote(candidate_1 as usize, &params.clone());
+
+    let votes = vec![&vote_1, &vote_2, &vote_3];
 
     assert!(Voter::check_votes(&voter_1, &vote_1, &params));
     assert!(Voter::check_votes(&voter_2, &vote_2, &params));
     assert!(Voter::check_votes(&voter_3, &vote_3, &params));
 
-
-
-    let shares_and_proofs: Vec<DistDecryptEGMsg> = tellers
-        .iter()
-        .map(|teller| teller.get_share().publish_shares_and_proofs_for_decryption(&vote_1.ev))
-        .collect();
-    let valid_shares_for_decryption: Vec<BigInt> = tellers
-        .iter()
-        .zip(shares_and_proofs)
-        .filter(|(teller, share_and_proof)| teller.get_share().verify_proof_for_decryption(&vote_1.ev, share_and_proof, teller.teller_index) )
-        .map(|(_, shares_and_proof)| shares_and_proof.share)
-        .collect();
-    if valid_shares_for_decryption.len() == 0{
-        panic!("no share has been validated");
+let mut a = 0;
+    for vote in votes{
+        println!("a = {}",a);
+        a += 1;
+        println!("vote c1 {:?}", vote.ev.c1);
+        let shares_and_proofs: Vec<DistDecryptEGMsg> = tellers
+            .iter()
+            .map(|teller| teller.get_share().publish_shares_and_proofs_for_decryption(&vote.ev))
+            .collect();
+        let valid_shares_for_decryption: Vec<BigInt> = tellers
+            .iter()
+            .zip(shares_and_proofs)
+            .filter(|(teller, share_and_proof)| teller.get_share().verify_proof_for_decryption(&vote.ev, share_and_proof, teller.teller_index) )
+            .map(|(_, shares_and_proof)| shares_and_proof.share)
+            .collect();
+        if valid_shares_for_decryption.len() == 0{
+            panic!("no share has been validated");
+        }
+        println!("number of valid shares = {:?}", valid_shares_for_decryption.len());
+        let decrypted_msg = DistElGamal::combine_shares_and_decrypt( &vote.ev, valid_shares_for_decryption, &pp);
+        println!("vote: {:?}", decrypted_msg);
+        //let encoded_msg = encoding_quadratic_residue(BigInt::from(candidate_1), &pp);
+        //assert_eq!( encoded_msg, decrypted_msg);
     }
-    println!("number of valid shares = {:?}", valid_shares_for_decryption.len());
-    let decrypted_msg = DistElGamal::combine_shares_and_decrypt( vote_1.ev, valid_shares_for_decryption, &pp);
-    println!("vote: {:?}", decrypted_msg);
-    let encoded_msg = encoding_quadratic_residue(BigInt::from(candidate_1), &pp);
-    assert_eq!( encoded_msg, decrypted_msg);
+
 
 
 
