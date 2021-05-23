@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use crate::citivas::encryption_schemes::{reencrypt, ElGamalCipherTextAndPK, encoding_quadratic_residue};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
-use crate::citivas::supervisor::SystemParameters;
+use crate::citivas::supervisor::{SystemParameters, NUMBER_OF_CANDIDATES};
 use crate::citivas::voter;
 use crate::citivas::voter::{Vote, Voter};
 use crate::citivas::tellers::Teller;
@@ -22,11 +22,26 @@ use crate::SupportedGroups;
 use crate::citivas::registrar::Registrar;
 use crate::citivas::entity::Entity;
 use crate::citivas::dist_el_gamal::{DistDecryptEGMsg, DistElGamal, CommitmentKeyGen, KeyProof};
+use std::collections::HashMap;
+use std::ops::Sub;
 
 
 pub struct Results{
     candidate_id: i32,
     score: i32
+}
+
+fn truncate_bigint_to_u32(a: &BigInt) -> u32 {
+    use num_traits::Signed;
+
+    let was_negative = a.is_negative();
+    let abs = a.abs().to_biguint().unwrap();
+    let mut truncated = truncate_biguint_to_u32(&abs);
+    if was_negative {
+        truncated.wrapping_neg()
+    } else {
+        truncated
+    }
 }
 
 #[test]
@@ -154,11 +169,9 @@ pub fn integration_test(){
     assert!(Voter::check_votes(&voter_2, &vote_2, &params));
     assert!(Voter::check_votes(&voter_3, &vote_3, &params));
 
-let mut a = 0;
+    let mut vote_counter: HashMap<&BigInt, i32> = HashMap::new();
+    let mut results :Vec<BigInt> = vec![];
     for vote in votes{
-        println!("a = {}",a);
-        a += 1;
-        println!("vote c1 {:?}", vote.ev.c1);
         let shares_and_proofs: Vec<DistDecryptEGMsg> = tellers
             .iter()
             .map(|teller| teller.get_share().publish_shares_and_proofs_for_decryption(&vote.ev))
@@ -175,11 +188,29 @@ let mut a = 0;
         println!("number of valid shares = {:?}", valid_shares_for_decryption.len());
         let decrypted_msg = DistElGamal::combine_shares_and_decrypt( &vote.ev, valid_shares_for_decryption, &pp);
         println!("vote: {:?}", decrypted_msg);
+        if decrypted_msg > BigInt::from(NUMBER_OF_CANDIDATES as i32) {
+            panic!("Cipher Text was not decrypted as expected");
+        }
+        let vote_plaintext = decrypted_msg.sub(BigInt::one());
+        results.push(vote_plaintext);
+        /*
+        if vote_counter.keys().any(|&key | key == &vote_plaintext)
+            {
+                *vote_counter.get_mut(&vote_plaintext).unwrap() += 1;
+            }
+        else{
+            vote_counter.insert(&vote_plaintext, 1);
+        }
+
+         */
         //let encoded_msg = encoding_quadratic_residue(BigInt::from(candidate_1), &pp);
         //assert_eq!( encoded_msg, decrypted_msg);
     }
-
-
+    println!("results = {:?}", results);
+    let mut vec_count= vec![];
+    for vote_ptx in results{
+        vt = vec_count[truncate_bigint_to_u32(&vote_ptx) as usize)]
+    }
 
 
     //left to do
