@@ -73,6 +73,9 @@ impl Voter {
 
 
     pub fn create(voter_number: usize, params: &SystemParameters, sharedPK: &ElGamalPublicKey) -> Self {
+        if params.encrypted_candidate_list.is_none(){
+            panic!("shared public must be set to the supervisor!");
+        }
         let key_pair = ElGamalKeyPair::generate(&params.pp);
         //  let key_pair= ElGamalKeyPair{ pk: ElGamalPublicKey { pp:pp.clone(), h: BigInt::from(13) }, sk: ElGamalPrivateKey{ pp:pp.clone(), x: BigInt::from(29) } };
         Self {
@@ -84,7 +87,7 @@ impl Voter {
             KTT: sharedPK.clone(),
             chosen_candidate: None,
             eid: params.eid,
-            encrypted_candidate_list: params.encrypted_candidate_list.clone()
+            encrypted_candidate_list: params.encrypted_candidate_list.clone().unwrap()
         }
     }
 
@@ -183,7 +186,6 @@ impl Voter{
 
 
     pub fn vote(&self,  candidate_index: usize, params: &SystemParameters)-> Vote{
-
         assert!(&self.private_credential.is_some());
         let nonce_for_encrypting_credentials = sample_from!(&self.get_q());
        // let es = ElGamal::encrypt_from_predefined_randomness(

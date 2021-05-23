@@ -21,7 +21,7 @@ pub struct SystemParameters {
     pub num_of_candidates: usize,
     pub O: BigInt, //a set (of size O) is specified in Citivas where random parameter are selected from
     pub nonce_for_candidate_encryption: BigInt, //the reason for publishing this is that it is needed for computing the witness in votePf. //The reason not to hide the candidate under the encryption is that the encryption is done (AFAIK) for creating a data format that allows to prove  reenc 1 out of L
-    pub encrypted_candidate_list: Vec<ElGamalCiphertext>,
+    pub encrypted_candidate_list: Option<Vec<ElGamalCiphertext>>,
     pub eid: i32 //identifier of election
   }
 
@@ -33,14 +33,7 @@ impl SystemParameters {
 
     pub fn create_supervisor(pp: &ElGamalPP) -> Self{
         let _O = BigInt::from_str(O_STRING).unwrap();
-     //   let nonce_for_candidate_encryption = BigInt::sample_below(&pp.q);
-        let nonce_for_candidate_encryption = BigInt::from(3);
-        let key_pair = ElGamalKeyPair::generate(&pp);
-        let encrypted_candidate_list = (1..NUMBER_OF_CANDIDATES + 1).
-            map(|candidate| ElGamal::encrypt_from_predefined_randomness(
-                &BigInt::from(candidate as i32), &key_pair.pk, &nonce_for_candidate_encryption
-            ).unwrap())
-            .collect();
+        let nonce_for_candidate_encryption = BigInt::from(3);// you can replace the "3" with any value
         SystemParameters{
             pp: pp.clone(),
             num_of_tellers: NUMBER_OF_TALLIES,
@@ -48,11 +41,19 @@ impl SystemParameters {
             num_of_candidates: NUMBER_OF_CANDIDATES,
             O: BigInt::from_str(O_STRING).unwrap(),
             nonce_for_candidate_encryption,
-            encrypted_candidate_list,
-            eid: 0
+            eid: 0,
+            encrypted_candidate_list: None
         }
     }
 
+    pub fn set_encrypted_list(&mut self, shared_pk: ElGamalPublicKey) {
+        let encrypted_candidate_list = (1..NUMBER_OF_CANDIDATES + 1).
+            map(|candidate| ElGamal::encrypt_from_predefined_randomness(
+                &BigInt::from(candidate as i32), &shared_pk, &self.nonce_for_candidate_encryption
+            ).unwrap())
+            .collect();
+        self.encrypted_candidate_list = Some(encrypted_candidate_list);
+    }
     /*
     pub fn create_supervisor_toy(pp: &ElGamalPP) -> Self{
         let _O = BigInt::from_str(O_STRING).unwrap();

@@ -50,9 +50,9 @@ pub fn encoding_quadratic_residue(m: BigInt, pp: &elgamal::ElGamalPP) -> BigInt 
 pub fn decoding_quadratic_residue(encoded_vote: BigInt, pp: &elgamal::ElGamalPP) -> BigInt {
     //modify m by adding 1 to m because the subgroup Gq does not include the value zero
     //Be very aware of that as it may originate a bug somewhere in the code!!!
-    let encoded_modified = BigInt::mod_sub(&m, &BigInt::one(), &pp.p);
+    let encoded_modified = BigInt::mod_sub(&encoded_vote, &BigInt::one(), &pp.p);
     //check if m is QR according to Euler criterion
-    let test_if_QR = BigInt::mod_pow(&m_modified, &pp.q, &pp.p);
+    let test_if_QR = BigInt::mod_pow(&encoded_modified, &pp.q, &pp.p);
     //if m is QR then return m otherwise return p - m
     return if test_if_QR == BigInt::one() {
         encoded_modified

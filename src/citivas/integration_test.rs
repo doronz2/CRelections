@@ -33,7 +33,8 @@ pub struct Results{
 pub fn integration_test(){
     let group_id = SupportedGroups::FFDHE4096;
     let pp = ElGamalPP::generate_from_rfc7919(group_id);
-    let params = &SystemParameters::create_supervisor(&pp);
+    let mut sys_params = SystemParameters::create_supervisor(&pp);
+    let params =  &mut sys_params;
   // *** basic methodology ***
     //create tellers, registrar, supervisor,and voter
     //supervisor create params
@@ -85,6 +86,8 @@ pub fn integration_test(){
 
     assert_eq!(shared_public_key, shared_public_key_2);
     assert_eq!(shared_public_key, shared_public_key_3);
+
+    params.set_encrypted_list(shared_public_key.clone());
 
     let registrar_1 = Registrar::create(0, params.clone(),  shared_public_key.clone());
     let registrar_2 = Registrar::create(1, params.clone(),  shared_public_key.clone());
@@ -165,9 +168,10 @@ pub fn integration_test(){
         panic!("no share has been validated");
     }
     println!("number of valid shares = {:?}", valid_shares_for_decryption.len());
-    let plain_text_msg = DistElGamal::combine_shares_and_decrypt( vote_1.ev, valid_shares_for_decryption, &pp);
-    println!("vote: {:?}", plain_text_msg);
-    // assert_eq!(BigInt::from(candidate_1), plain_text_msg);
+    let decrypted_msg = DistElGamal::combine_shares_and_decrypt( vote_1.ev, valid_shares_for_decryption, &pp);
+    println!("vote: {:?}", decrypted_msg);
+    let encoded_msg = encoding_quadratic_residue(BigInt::from(candidate_1), &pp);
+    assert_eq!( encoded_msg, decrypted_msg);
 
 
 
