@@ -1,24 +1,23 @@
-
 #[macro_use]
-pub mod macros{
-    macro_rules! sample_from{
+pub mod macros {
+    macro_rules! sample_from {
         ($pp: expr) => {
-        BigInt::sample_below($pp);
+            BigInt::sample_below($pp);
         };
     }
 }
 
 pub mod citivas;
-pub use elgamal::{ElGamal,rfc7919_groups::SupportedGroups,ElGamalPP,
-ElGamalKeyPair,ElGamalError,ElGamalCiphertext,
-ElGamalPrivateKey,ElGamalPublicKey,ExponentElGamal};
-use elgamal::BigInt;
 use curv::arithmetic::traits::Modulo;
+use elgamal::BigInt;
+pub use elgamal::{
+    rfc7919_groups::SupportedGroups, ElGamal, ElGamalCiphertext, ElGamalError, ElGamalKeyPair,
+    ElGamalPP, ElGamalPrivateKey, ElGamalPublicKey, ExponentElGamal,
+};
 
-
-pub enum Error{
+pub enum Error {
     FailedMixError,
-    EncryptionError
+    EncryptionError,
 }
 
 pub fn encrypt_toy(m: &BigInt, pk: &ElGamalPublicKey) -> Result<ElGamalCiphertext, ElGamalError> {
@@ -45,11 +44,10 @@ pub fn generate_keys_toy(pp: &ElGamalPP) -> ElGamalKeyPair {
     ElGamalKeyPair { pk, sk }
 }
 
-
 pub fn generate_pp_toy() -> ElGamalPP {
-   ElGamalPP{
-       g: BigInt::from(2),
-       q: BigInt::from(509),// q is Sophie Germain prime
-       p: BigInt::from(1019)//p is a safe prime
-   }
+    ElGamalPP {
+        g: BigInt::from(2),
+        q: BigInt::from(509),  // q is Sophie Germain prime
+        p: BigInt::from(1019), //p is a safe prime
+    }
 }

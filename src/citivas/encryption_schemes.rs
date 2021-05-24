@@ -1,7 +1,6 @@
 use curv::BigInt;
 use elgamal::{
-     ElGamal, ElGamalCiphertext, ElGamalError,
-     ElGamalPrivateKey, ElGamalPublicKey, ExponentElGamal,
+    ElGamal, ElGamalCiphertext, ElGamalError, ElGamalPrivateKey, ElGamalPublicKey, ExponentElGamal,
 };
 
 use curv::arithmetic::traits::Modulo;
@@ -9,7 +8,6 @@ use curv::arithmetic::traits::Samplable;
 use curv::cryptographic_primitives::hashing::hash_sha256;
 use curv::cryptographic_primitives::hashing::traits::Hash;
 use serde::{Deserialize, Serialize};
-
 
 //use elgamal::ElGamalKeyPair;
 
@@ -179,7 +177,6 @@ pub fn reencrypt(c: &ElGamalCipherTextAndPK, random_nonce: &BigInt) -> ElGamalCi
     }
 }
 
-
 //The only difference between this function and Zengo's is that here we exect to get a quadratic residue encoding, so that
 // m is taken from z_p and not z_q
 pub fn encrypt_from_predefined_randomness(
@@ -190,8 +187,8 @@ pub fn encrypt_from_predefined_randomness(
     //test 0<m<p
     if m.ge(&pk.pp.p) || m.le(&BigInt::zero()) {
         println!("1!");
-        println!("m:{:?}",m);
-        println!("p:{:?}",pk.pp.p);
+        println!("m:{:?}", m);
+        println!("p:{:?}", pk.pp.p);
 
         return Err(ElGamalError::EncryptionError);
     }
@@ -210,7 +207,6 @@ pub fn encrypt_from_predefined_randomness(
         pp: pk.pp.clone(),
     })
 }
-
 
 pub fn reencrypt_disjoint_structs(
     c: &ElGamalCiphertext,
