@@ -1,11 +1,9 @@
-use crate::citivas::supervisor::SystemParameters;
-use curv::arithmetic::traits::{Modulo, Samplable};
+use curv::arithmetic::traits::Modulo;
 use curv::cryptographic_primitives::hashing::hash_sha256;
 use curv::cryptographic_primitives::hashing::traits::Hash;
 use curv::BigInt;
 use elgamal::{
-    rfc7919_groups::SupportedGroups, ElGamalCiphertext, ElGamalError, ElGamalKeyPair, ElGamalPP,
-    ElGamalPrivateKey, ElGamalPublicKey, ExponentElGamal,
+     ElGamalCiphertext, ElGamalKeyPair, ElGamalPP, ElGamalPublicKey,
 };
 use serde::{Deserialize, Serialize};
 use vice_city::utlities::ddh_proof::{DDHProof, DDHStatement, DDHWitness, NISigmaProof};
@@ -37,7 +35,7 @@ pub struct CommitmentKeyGen {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct keyGenPKShare {
+pub struct KeyGenPkShare {
     share: BigInt,
     party_index: i32,
 }
@@ -49,20 +47,10 @@ pub struct DistDecryptEGMsg {
     party_index: i32,
 }
 
-/*
-impl KeyPair{
-    pub fn generate_share_key_pair(party_index:i32) -> ElGamalKeyPair{
-        let group_id = SupportedGroups::FFDHE4096;
-        let pp = ElGamalPP::generate_from_rfc7919(group_id);
-        let share_key_pair = ElGamalKeyPair::generate(&pp);
-        share_key_pair
-    }
-}
-*/
+
 
 impl DistElGamal {
     //------ Distributed El Gamal Key Generation --------
-
     pub fn generate_share(pp: &ElGamalPP, party_index: i32) -> DistElGamal {
         Self {
             share_key_pair: ElGamalKeyPair::generate(&pp),
@@ -90,13 +78,13 @@ impl DistElGamal {
         let w = Witness {
             x: self.share_key_pair.sk.x.clone(),
         };
-        let dLogProof = DLogProof::prove(&w, &self.share_key_pair.pk.pp);
+        let d_log_proof = DLogProof::prove(&w, &self.share_key_pair.pk.pp);
         KeyProof {
             pk: ElGamalPublicKey {
                 pp: self.share_key_pair.pk.pp.clone(),
                 h: self.share_key_pair.pk.h.clone(),
             },
-            proof: dLogProof,
+            proof: d_log_proof,
             party_index: self.party_index,
         }
     }
@@ -213,11 +201,11 @@ impl DistElGamal {
         shares: Vec<BigInt>,
         pp: &ElGamalPP,
     ) -> BigInt {
-        let A = shares
+        let a = shares
             .iter()
             .fold(BigInt::one(), |prod, share| prod * share)
             .mod_floor(&pp.p);
-        let decrypted_text = (cipher.clone().c2 * A.invert(&pp.p).unwrap()).mod_floor(&pp.p);
+        let decrypted_text = (cipher.clone().c2 * a.invert(&pp.p).unwrap()).mod_floor(&pp.p);
         decrypted_text
     }
 }
@@ -227,6 +215,9 @@ mod test {
     use super::*;
     use crate::citivas::encryption_schemes::encoding_quadratic_residue;
     use crate::ElGamal;
+    use elgamal::rfc7919_groups::SupportedGroups;
+    use elgamal::ElGamalPrivateKey;
+    use curv::arithmetic::traits::Samplable;
 
     #[test]
     pub fn test_generate_key_from_shares() {
@@ -261,22 +252,13 @@ mod test {
             pp: pp.clone(),
         };
         let encoded_msg = encoding_quadratic_residue(BigInt::from(17), &pp);
-        let r = BigInt::sample_below(&pp.q);
-        let encrypted_msg = elgamal::ElGamal::encrypt_from_predefined_randomness(
-            &BigInt::from(encoded_msg.clone()),
-            &shared_public_key,
-            &r,
-        )
-        .unwrap();
-
-        println!("msg1: {:?}", encoded_msg);
         let encrypted_msg = ElGamal::encrypt(&encoded_msg, &shared_public_key).unwrap();
         let decrypted_msg = ElGamal::decrypt(&encrypted_msg, &shared_private_key).unwrap();
         assert_eq!(encoded_msg, decrypted_msg);
     }
 
     #[test]
-    pub fn test_distributed_EG_decryption() {
+    pub fn test_distributed_eg_decryption() {
         let group_id = SupportedGroups::FFDHE4096;
         let pp = ElGamalPP::generate_from_rfc7919(group_id);
         let party_1 = DistElGamal::generate_share(&pp, 1);
@@ -300,7 +282,6 @@ mod test {
         let shared_public_key = party_1.construct_shared_public_key(commitments, shares_and_proofs);
 
         let encoded_msg = encoding_quadratic_residue(BigInt::from(17), &pp);
-        println!("msg2: {:?}", encoded_msg);
         let r = BigInt::sample_below(&pp.q);
 
         let encrypted_msg = elgamal::ElGamal::encrypt_from_predefined_randomness(
@@ -329,10 +310,7 @@ mod test {
         if valid_shares_for_decryption.len() == 0 {
             panic!("no share has been validated");
         }
-        println!(
-            "number of valid shares = {:?}",
-            valid_shares_for_decryption.len()
-        );
+
         let plain_text_msg = DistElGamal::combine_shares_and_decrypt(
             &encrypted_msg,
             valid_shares_for_decryption,

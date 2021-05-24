@@ -1,6 +1,6 @@
 use curv::BigInt;
 use elgamal::{
-    ElGamal, ElGamalCiphertext, ElGamalKeyPair, ElGamalPP, ElGamalPrivateKey, ElGamalPublicKey,
+    ElGamalCiphertext, ElGamalKeyPair, ElGamalPP, ElGamalPrivateKey, ElGamalPublicKey,
 };
 
 use curv::arithmetic::traits::Modulo;
@@ -22,7 +22,7 @@ use crate::citivas::zkproofs::*;
 pub struct Voter {
     pub designation_key_pair: ElGamalKeyPair,
     voter_number: usize,
-    KTT: ElGamalPublicKey, //public key of the tally tellers
+    ktt: ElGamalPublicKey, //public key of the tally tellers
     private_credential: Option<BigInt>,
     pub(crate) pp: ElGamalPP,
     chosen_candidate: Option<i8>, //the vote itself
@@ -35,15 +35,12 @@ pub struct Voter {
 pub struct Vote {
     pub(crate) es: ElGamalCiphertext, //encryption of the private credential
     pub(crate) ev: ElGamalCiphertext, //reencryption of the ciphertext, i.e., c_i is the encryption of the vote and ev is an encryption of c_i
-    pub(crate) pf: VotePfProof, //a proof that shows that the voter knows the private credential and the vote
+    pub(crate) pf: VotepfProof, //a proof that shows that the voter knows the private credential and the vote
     // (This defends against an adversary who attempts to post functions of previously cast votes.)
     pub(crate) pw: ReencProof, //a proof that shows ev is an encryption of one cipher (c_i) in the list of L candidates
 }
 
-//a technical function that computes (x/x')^c mod p
-pub fn div_and_pow(x: &BigInt, x_tag: &BigInt, c: &BigInt, p: &BigInt) -> BigInt {
-    BigInt::mod_pow(&(x_tag * BigInt::mod_inv(&x, &p)).mod_floor(&p), &c, &p)
-}
+
 
 impl Voter {
     //The following function is used for debugging
@@ -57,7 +54,7 @@ impl Voter {
             pp: pp.clone(),
             private_credential: None,
             nonce_for_candidate_encryption: BigInt::zero(),
-            KTT: ElGamalPublicKey {
+            ktt: ElGamalPublicKey {
                 pp: pp.clone(),
                 h: BigInt::one(),
             },
@@ -83,7 +80,7 @@ impl Voter {
             pp: params.pp.clone(),
             private_credential: None,
             nonce_for_candidate_encryption: params.nonce_for_candidate_encryption.clone(),
-            KTT: sharedPK.clone(),
+            ktt: sharedPK.clone(),
             chosen_candidate: None,
             eid: params.eid,
             encrypted_candidate_list: params.encrypted_candidate_list.clone().unwrap(),
@@ -107,7 +104,7 @@ impl Voter {
             pp: params.pp,
             private_credential: None,
             nonce_for_candidate_encryption: params.nonce_for_candidate_encryption,
-            KTT: public_key.clone(),
+            ktt: public_key.clone(),
             chosen_candidate: None,
             eid: params.eid,
             encrypted_candidate_list: vec![],
@@ -138,7 +135,7 @@ impl Entity for Voter {
     }
 
     fn get_tally_pk(&self) -> &ElGamalPublicKey {
-        &self.KTT
+        &self.ktt
     }
 
     fn get_generator(&self) -> &BigInt {
@@ -148,17 +145,17 @@ impl Entity for Voter {
 
 impl Voter {
     //The voter need to verify that:
-    // 1. S'_i = Enc(s_i, r; KTT)
-    // 2. S’_i is a reencryption of S_i using DVRP, where S_i is retrieved from the bulletin board
+    // 1. S'_i = Enc(s_i, r; ktt)
+    // 2. S’_i is a reencryption of S_i using dvrp, where S_i is retrieved from the bulletin board
     pub fn verify_credentials(
         &self,
         cred_share: &CredetialShareOutput,
         S_i: &ElGamalCiphertext, //comes from the bulletin board
     ) -> bool {
         let verification_1: bool = cred_share.S_i_tag
-            == encrypt_from_predefined_randomness(&cred_share.s_i, &self.KTT, &cred_share.r_i)
+            == encrypt_from_predefined_randomness(&cred_share.s_i, &self.ktt, &cred_share.r_i)
                 .unwrap();
-        let verification_2 = DVRP_verifier(
+        let verification_2 = dvrp_verifier(
             self,
             &cred_share.get_dvrp_input(&self.designation_key_pair.pk.h, S_i),
             &cred_share.dvrp_proof,
@@ -196,7 +193,7 @@ impl Voter {
         let nonce_for_encrypting_credentials = sample_from!(&self.get_q());
         let es = encrypt_from_predefined_randomness(
             &self.private_credential.clone().unwrap(),
-            &self.KTT,
+            &self.ktt,
             &nonce_for_encrypting_credentials,
         )
         .unwrap(); //encryption of the credential
@@ -208,7 +205,7 @@ impl Voter {
                     .get(candidate_index)
                     .unwrap()
                     .clone(),
-                pk: &self.KTT,
+                pk: &self.ktt,
             },
             &nonce_for_reecryption,
         ); //reencryption of the vote with the tellers public key
@@ -216,14 +213,14 @@ impl Voter {
             c_list: self.encrypted_candidate_list.clone(),
             c: ev.clone(),
         };
-        let pw = reenc_proof_input.reenc_out_of_list_1_out_of_L_prove(
+        let pw = reenc_proof_input.reenc_out_of_list_1_out_of_l_prove(
             &self.get_pp(),
-            &self.KTT,
+            &self.ktt,
             candidate_index,
             nonce_for_reecryption.clone(),
             params.num_of_candidates,
         );
-        let vote_pf_input = VotePfPublicInput {
+        let vote_pf_input = VotepfPublicInput {
             encrypted_credential: es.clone(),
             encrypted_choice: ev.clone(),
             eid: BigInt::from(self.eid as i32),
@@ -239,7 +236,7 @@ impl Voter {
     // Verify the proofs of votepf and reencryption
     // move function to tallies
     pub fn check_votes(voter: &Voter, vote: &Vote, params: &SystemParameters) -> bool {
-        let vote_pf_input = VotePfPublicInput {
+        let vote_pf_input = VotepfPublicInput {
             encrypted_credential: vote.es.clone(),
             encrypted_choice: vote.ev.clone(),
             eid: BigInt::from(voter.eid),
@@ -249,9 +246,9 @@ impl Voter {
             c_list: voter.encrypted_candidate_list.clone(),
             c: vote.clone().ev,
         };
-        let check_2 = reenc_proof_input.reenc_1_out_of_L_verifier(
+        let check_2 = reenc_proof_input.reenc_1_out_of_l_verifier(
             &voter.get_pp(),
-            &voter.KTT,
+            &voter.ktt,
             &vote.pw,
             params.num_of_candidates,
         );

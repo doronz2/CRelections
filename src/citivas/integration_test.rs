@@ -1,38 +1,19 @@
+
+
+use crate::citivas::supervisor::{NUMBER_OF_CANDIDATES, SystemParameters};
+use crate::citivas::tellers::Teller;
+use crate::citivas::voter:: Voter;
+use crate::citivas::zkproofs::DvrpPublicInput;
+use crate::SupportedGroups;
+use std::ops::Sub;
+use elgamal::ElGamalPP;
+use crate::citivas::dist_el_gamal::{CommitmentKeyGen, DistElGamal, KeyProof, DistDecryptEGMsg};
 use curv::BigInt;
-use elgamal::{
-    ElGamal, ElGamalCiphertext, ElGamalError, ElGamalKeyPair, ElGamalPP, ElGamalPrivateKey,
-    ElGamalPublicKey, ExponentElGamal,
-};
-
-use curv::arithmetic::traits::Samplable;
-use curv::cryptographic_primitives::hashing::hash_sha256;
-use curv::cryptographic_primitives::hashing::traits::Hash;
-
-use serde::{Deserialize, Serialize};
-
-use crate::citivas::dist_el_gamal::{CommitmentKeyGen, DistDecryptEGMsg, DistElGamal, KeyProof};
-use crate::citivas::encryption_schemes::{
-    encoding_quadratic_residue, reencrypt, ElGamalCipherTextAndPK,
-};
 use crate::citivas::entity::Entity;
 use crate::citivas::registrar::Registrar;
-use crate::citivas::supervisor::{SystemParameters, NUMBER_OF_CANDIDATES};
-use crate::citivas::tellers::Teller;
-use crate::citivas::voter;
-use crate::citivas::voter::{Vote, Voter};
-use crate::citivas::zkproofs::{
-    DVRP_verifier, DvrpPublicInput, ReencProofInput, VotePfPublicInput,
-};
-use crate::SupportedGroups;
-use rand::seq::SliceRandom;
-use rand::thread_rng;
-use std::collections::HashMap;
-use std::ops::Sub;
 
-pub struct Results {
-    candidate_id: i32,
-    score: i32,
-}
+
+
 
 #[test]
 pub fn integration_test() {
@@ -43,7 +24,7 @@ pub fn integration_test() {
     // *** basic methodology ***
     //create tellers, registrar, supervisor,and voter
     //supervisor create params
-    //tellers create KTT public key
+    //tellers create ktt public key
     //registrar create credentials
     // voters construct credential and vote
     // tellers decrypt all the massages, read all the vote, and score each candidate
@@ -95,6 +76,7 @@ pub fn integration_test() {
     assert_eq!(shared_public_key, shared_public_key_2);
     assert_eq!(shared_public_key, shared_public_key_3);
 
+    //"encrypt" the list of candidates (that is known) with the shared public key
     params.set_encrypted_list(shared_public_key.clone());
 
     let registrar_1 = Registrar::create(0, params.clone(), shared_public_key.clone());
@@ -149,7 +131,7 @@ pub fn integration_test() {
         &credential_share_2_for_voter_3.S_i,
     );
 
-    //publish credential and proof (via DVRP proof) that S'_i is reencryption of S_i
+    //publish credential and proof (via dvrp proof) that S'_i is reencryption of S_i
     let cred_share_output_1_voter_1 = registrar_1
         .publish_credential_with_proof(&credential_share_1_for_voter_1, dvrp_input_voter_1_cred_1);
     let cred_share_output_2_voter_1 = registrar_2
@@ -201,7 +183,6 @@ pub fn integration_test() {
     assert!(Voter::check_votes(&voter_2, &vote_2, &params));
     assert!(Voter::check_votes(&voter_3, &vote_3, &params));
 
-    let mut vote_counter: HashMap<&BigInt, i32> = HashMap::new();
     let mut results: Vec<BigInt> = vec![];
     let mut i = 0;
     for vote in votes {

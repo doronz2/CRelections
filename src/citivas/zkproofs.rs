@@ -1,9 +1,5 @@
 use curv::BigInt;
-use elgamal::{
-    rfc7919_groups::SupportedGroups, ElGamal, ElGamalCiphertext, ElGamalError, ElGamalKeyPair,
-    ElGamalPP, ElGamalPrivateKey, ElGamalPublicKey, ExponentElGamal,
-};
-
+use elgamal::{ElGamalCiphertext, ElGamalPP, ElGamalPublicKey, };
 use crate::citivas::entity::Entity;
 use crate::citivas::supervisor::SystemParameters;
 use crate::citivas::voter::Voter;
@@ -47,14 +43,14 @@ pub struct Statement {
 }
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
-pub struct VotePfPublicInput {
+pub struct VotepfPublicInput {
     pub(crate) encrypted_credential: ElGamalCiphertext,
     pub(crate) encrypted_choice: ElGamalCiphertext,
     pub eid: BigInt, //election identifier,
 }
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
-pub struct VotePfProof {
+pub struct VotepfProof {
     c: BigInt,
     s1: BigInt,
     s2: BigInt,
@@ -102,7 +98,7 @@ fn div_and_pow(denom: &BigInt, nom: &BigInt, c: &BigInt, p: &BigInt) -> BigInt {
     BigInt::mod_pow(&(nom * BigInt::mod_inv(&denom, &p)), &c, &p)
 }
 
-impl VotePfPublicInput {
+impl VotepfPublicInput {
     pub fn generate_random_input(pp: &ElGamalPP, witness: &VoteWitness) -> Self {
         let a1: BigInt = BigInt::mod_pow(&pp.g, &witness.alpha_1, &pp.p);
         let a2: BigInt = BigInt::mod_pow(&pp.g, &witness.alpha_2, &pp.p);
@@ -135,35 +131,35 @@ impl VotePfPublicInput {
 // [1]: Hirt, Sako: Efficient receipt-free voting based on homomorphic encryption.
 
 impl ReencProofInput {
-    pub fn reenc_in_list_1_out_of_L_prove(
+    pub fn reenc_in_list_1_out_of_l_prove(
         &self,
         pp: &ElGamalPP,
         pk: &ElGamalPublicKey,
         chosen_ciphertext_index: usize,
         eta: BigInt,
-        L: usize,
+        l: usize,
     ) -> ReencProof {
-        if self.c_list.len() != L {
-            panic!("Size of the list doesn't match the specified list length L")
+        if self.c_list.len() != l {
+            panic!("Size of the list doesn't match the specified list length l")
         }
         if *pp != pk.pp {
             panic!("mismatch pp");
         }
-        if chosen_ciphertext_index >= L {
+        if chosen_ciphertext_index >= l {
             panic! {"t must be smaller than the size of the list"}
         }
-        let mut list_d_i = Vec::with_capacity(L);
-        let mut list_r_i = Vec::with_capacity(L);
-        let mut list_a_i = Vec::with_capacity(L);
-        let mut list_b_i = Vec::with_capacity(L);
+        let mut list_d_i = Vec::with_capacity(l);
+        let mut list_r_i = Vec::with_capacity(l);
+        let mut list_a_i = Vec::with_capacity(l);
+        let mut list_b_i = Vec::with_capacity(l);
 
-        for _ in 0..L {
+        for _ in 0..l {
             list_d_i.push(BigInt::sample_below(&pp.q));
             list_r_i.push(BigInt::sample_below(&pp.q));
         }
         let mut u_i: &BigInt;
         let mut v_i: &BigInt;
-        for i in 0..L {
+        for i in 0..l {
             u_i = &self.c_list[i].c1;
             v_i = &self.c_list[i].c2;
             list_a_i.push(BigInt::mod_floor(
@@ -178,7 +174,7 @@ impl ReencProofInput {
             ));
         }
 
-        let mut E = {
+        let mut e = {
             let mut e_vec = Vec::new();
             e_vec.push(&self.c.c1);
             e_vec.push(&self.c.c2);
@@ -191,11 +187,11 @@ impl ReencProofInput {
             e_vec
         };
 
-        E.extend(list_a_i.iter());
-        E.extend(list_b_i.iter());
-        // println!("E:{:#?}", E);
+        e.extend(list_a_i.iter());
+        e.extend(list_b_i.iter());
+        // println!("e:{:#?}", e);
 
-        let c = BigInt::mod_floor(&hash_sha256::HSha256::create_hash(&E), &pp.q);
+        let c = BigInt::mod_floor(&hash_sha256::HSha256::create_hash(&e), &pp.q);
         let w = BigInt::mod_floor(
             &(&eta * &list_d_i[chosen_ciphertext_index] + &list_r_i[chosen_ciphertext_index]),
             &pp.q,
@@ -214,19 +210,19 @@ impl ReencProofInput {
         }
     }
 
-    pub fn reenc_1_out_of_L_verifier(
+    pub fn reenc_1_out_of_l_verifier(
         &self,
         pp: &ElGamalPP,
         pk: &ElGamalPublicKey,
         proof: &ReencProof,
-        L: usize,
+        l: usize,
     ) -> bool {
-        let mut list_a_i = Vec::with_capacity(L);
-        let mut list_b_i = Vec::with_capacity(L);
+        let mut list_a_i = Vec::with_capacity(l);
+        let mut list_b_i = Vec::with_capacity(l);
 
         let mut u_i: &BigInt;
         let mut v_i: &BigInt;
-        for i in 0..L {
+        for i in 0..l {
             u_i = &self.c_list[i].c1;
             v_i = &self.c_list[i].c2;
             list_a_i.push(BigInt::mod_floor(
@@ -241,7 +237,7 @@ impl ReencProofInput {
             ));
         }
 
-        let mut E = {
+        let mut e = {
             let mut e_vec = Vec::new();
             e_vec.push(&self.c.c1);
             e_vec.push(&self.c.c2);
@@ -254,46 +250,46 @@ impl ReencProofInput {
             e_vec
         };
 
-        E.extend(list_a_i.iter());
-        E.extend(list_b_i.iter());
-        //    println!("E:{:#?}", E);
+        e.extend(list_a_i.iter());
+        e.extend(list_b_i.iter());
+        //    println!("e:{:#?}", e);
 
-        let c = hash_sha256::HSha256::create_hash(&E).mod_floor(&pp.q);
+        let c = hash_sha256::HSha256::create_hash(&e).mod_floor(&pp.q);
         let sum: BigInt = proof.d.iter().fold(BigInt::zero(), |a, b| a + b);
         let D = sum.mod_floor(&pp.q);
         return c == D;
     }
 
-    // The following function proves that c=(u,v) is an encryption of some c_t (for a private t) in a list of ciphers c_1,...,c_l (See PROTOCOL: ReencPf in Civitas)
-    pub fn reenc_out_of_list_1_out_of_L_prove(
+    // The following function proves that c=(u,v) is an encryption of some c_t (for a private t) in a list of ciphers c_1,...,c_l (See PROTOCOL: Reencpf in Civitas)
+    pub fn reenc_out_of_list_1_out_of_l_prove(
         &self,
         pp: &ElGamalPP,
         pk: &ElGamalPublicKey,
         chosen_ciphertext_index: usize,
         r: BigInt,
-        L: usize,
+        l: usize,
     ) -> ReencProof {
-        if self.c_list.len() != L {
-            panic!("Size of the list doesn't match the specified list length L")
+        if self.c_list.len() != l {
+            panic!("Size of the list doesn't match the specified list length l")
         }
         if *pp != pk.pp {
             panic!("mismatch pp");
         }
-        if chosen_ciphertext_index >= L {
+        if chosen_ciphertext_index >= l {
             panic! {"t must be smaller than the size of the list"}
         }
-        let mut list_d_i = Vec::with_capacity(L);
-        let mut list_r_i = Vec::with_capacity(L);
-        let mut list_a_i = Vec::with_capacity(L);
-        let mut list_b_i = Vec::with_capacity(L);
+        let mut list_d_i = Vec::with_capacity(l);
+        let mut list_r_i = Vec::with_capacity(l);
+        let mut list_a_i = Vec::with_capacity(l);
+        let mut list_b_i = Vec::with_capacity(l);
 
-        for _ in 0..L {
+        for _ in 0..l {
             list_d_i.push(BigInt::sample_below(&pp.q));
             list_r_i.push(BigInt::sample_below(&pp.q));
         }
         let mut u_i: &BigInt;
         let mut v_i: &BigInt;
-        for i in 0..L {
+        for i in 0..l {
             u_i = &self.c_list[i].c1;
             v_i = &self.c_list[i].c2;
             list_a_i.push(BigInt::mod_floor(
@@ -308,7 +304,7 @@ impl ReencProofInput {
             ));
         }
 
-        let mut E = {
+        let mut e = {
             let mut e_vec = Vec::new();
             e_vec.push(&self.c.c1);
             e_vec.push(&self.c.c2);
@@ -321,11 +317,11 @@ impl ReencProofInput {
             e_vec
         };
 
-        E.extend(list_a_i.iter());
-        E.extend(list_b_i.iter());
-        // println!("E:{:#?}", E);
+        e.extend(list_a_i.iter());
+        e.extend(list_b_i.iter());
+        // println!("e:{:#?}", e);
 
-        let c = BigInt::mod_floor(&hash_sha256::HSha256::create_hash(&E), &pp.q);
+        let c = BigInt::mod_floor(&hash_sha256::HSha256::create_hash(&e), &pp.q);
         //a^t = g^(-r*d_t +r_t)
         //w = -r * d_t + r_t ==> a^t = g^w
         // d_t_new =c - (sum(d_i) - d_t)
@@ -367,11 +363,11 @@ impl<'a> DvrpPublicInput<'a> {
     }
 }
 
-impl VotePfPublicInput {
-    pub fn votepf_prover(&self, witness: VoteWitness, params: &SystemParameters) -> VotePfProof {
+impl VotepfPublicInput {
+    pub fn votepf_prover(&self, witness: VoteWitness, params: &SystemParameters) -> VotepfProof {
         let r1 = BigInt::sample_below(&params.pp.q);
         let r2 = BigInt::sample_below(&params.pp.q);
-        let mut E = vec![
+        let mut e = vec![
             &params.pp.g,
             &self.encrypted_credential.c1,
             &self.encrypted_credential.c2,
@@ -381,18 +377,18 @@ impl VotePfPublicInput {
         ];
         let pre_hash_1 = BigInt::mod_pow(&params.pp.g, &r1, &params.pp.p);
         let pre_hash_2 = BigInt::mod_pow(&params.pp.g, &r2, &params.pp.p);
-        E.push(&pre_hash_1);
-        E.push(&pre_hash_2);
-        //        println!("E = {:#?}", E);
-        let c = hash_sha256::HSha256::create_hash(&E).mod_floor(&params.pp.q);
+        e.push(&pre_hash_1);
+        e.push(&pre_hash_2);
+        //        println!("e = {:#?}", e);
+        let c = hash_sha256::HSha256::create_hash(&e).mod_floor(&params.pp.q);
         let s1 = (r1 - &c * witness.alpha_1).mod_floor(&params.pp.q);
         let s2 = (r2 - &c * witness.alpha_2).mod_floor(&params.pp.q);
-        VotePfProof { c, s1, s2 }
+        VotepfProof { c, s1, s2 }
     }
 }
-impl VotePfProof {
-    pub fn votepf_verifier(&self, input: &VotePfPublicInput, params: &SystemParameters) -> bool {
-        let mut E = vec![
+impl VotepfProof {
+    pub fn votepf_verifier(&self, input: &VotepfPublicInput, params: &SystemParameters) -> bool {
+        let mut e = vec![
             &params.pp.g,
             &input.encrypted_credential.c1,
             &input.encrypted_credential.c2,
@@ -406,15 +402,15 @@ impl VotePfProof {
         let pre_hash_2 = (BigInt::mod_pow(&params.pp.g, &self.s2, &params.pp.p)
             * BigInt::mod_pow(&input.encrypted_choice.c1, &self.c, &params.pp.p))
         .mod_floor(&params.pp.p);
-        E.push(&pre_hash_1);
-        E.push(&pre_hash_2);
-        //   println!("E = {:#?}", E);
-        let c = hash_sha256::HSha256::create_hash(&E).mod_floor(&params.pp.q);
+        e.push(&pre_hash_1);
+        e.push(&pre_hash_2);
+        //   println!("e = {:#?}", e);
+        let c = hash_sha256::HSha256::create_hash(&e).mod_floor(&params.pp.q);
         self.c == c
     }
 }
 #[allow(dead_code)]
-pub fn DVRP_prover<E: Entity>(entity: &E, dvrp_input: &DvrpPublicInput, eta: BigInt) -> DvrpProof {
+pub fn dvrp_prover<E: Entity>(entity: &E, dvrp_input: &DvrpPublicInput, eta: BigInt) -> DvrpProof {
     //let d = BigInt::from(3);
     let w = BigInt::from(2);
     //let r = BigInt::from(5);
@@ -445,7 +441,7 @@ pub fn DVRP_prover<E: Entity>(entity: &E, dvrp_input: &DvrpPublicInput, eta: Big
     DvrpProof { c, w, r, u }
 }
 
-pub fn DVRP_verifier<E: Entity>(
+pub fn dvrp_verifier<E: Entity>(
     entity: &E,
     dvrp_input: &DvrpPublicInput,
     dvrp_proof: &DvrpProof,
@@ -500,7 +496,7 @@ pub fn DVRP_verifier<E: Entity>(
     c_tag == dvrp_proof.c
 }
 
-pub fn fakeDVRP_prover(voter: &Voter, dvrp_input: &DvrpPublicInput) -> DvrpProof {
+pub fn fakedvrp_prover(voter: &Voter, dvrp_input: &DvrpPublicInput) -> DvrpProof {
     let x = &dvrp_input.e.c1;
     let y = &dvrp_input.e.c2;
     let x_tag = &dvrp_input.e_tag.c1;

@@ -15,11 +15,12 @@ pub mod test_voter {
         let group_id = SupportedGroups::FFDHE4096;
         let pp = ElGamalPP::generate_from_rfc7919(group_id);
         let voter_number = 1;
-        let params = &SystemParameters::create_supervisor(&pp);
+        let mut params = SystemParameters::create_supervisor(&pp);
         let pk = ElGamalPublicKey {
             pp,
             h: BigInt::from(4),
         };
+        params.set_encrypted_list(pk.clone());
         let voter = Voter::create(voter_number, &params, &pk);
         let registrar = Registrar::create(0, params.clone(), pk.clone());
         let share = registrar.create_credential_share();
@@ -38,11 +39,13 @@ pub mod test_voter {
         let group_id = SupportedGroups::FFDHE4096;
         let pp = ElGamalPP::generate_from_rfc7919(group_id);
         let voter_number = 1;
-        let params = SystemParameters::create_supervisor(&pp);
+        let mut params = SystemParameters::create_supervisor(&pp);
         let pk = ElGamalPublicKey {
             pp,
             h: BigInt::from(4),
         };
+        params.set_encrypted_list(pk.clone());
+
         let mut voter = Voter::create(voter_number, &params, &pk);
         let registrar_1 = Registrar::create(0, params.clone(), pk.clone());
         let registrar_2 = Registrar::create(0, params.clone(), pk.clone());
@@ -86,7 +89,6 @@ pub mod test_voter {
             vec![share_1.S_i, share_2.S_i, bad_encryption],
         );
 
-        println!("private_credential {:?}", private_credential);
     }
 
     #[test]
@@ -94,11 +96,12 @@ pub mod test_voter {
         let group_id = SupportedGroups::FFDHE4096;
         let pp = ElGamalPP::generate_from_rfc7919(group_id);
         let voter_number = 1;
-        let params = &SystemParameters::create_supervisor(&pp);
+        let mut params = SystemParameters::create_supervisor(&pp);
         let pk = ElGamalPublicKey {
             pp: pp.clone(),
             h: BigInt::from(4),
         };
+        params.set_encrypted_list(pk.clone());
         let mut voter = Voter::create(voter_number, &params, &pk);
         let private_cred = encoding_quadratic_residue(BigInt::sample_below(&pp.p), &pp);
         //let private_cred = encoding_quadratic_residue(BigInt::from(3),&pp);

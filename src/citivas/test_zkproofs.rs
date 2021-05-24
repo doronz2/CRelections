@@ -13,32 +13,31 @@ pub mod test_zk_proofs {
     use elgamal::ElGamalPublicKey;
 
     #[test]
-    fn test_votePF() {
+    fn test_votepf() {
         let group_id = SupportedGroups::FFDHE4096;
         let pp = ElGamalPP::generate_from_rfc7919(group_id);
         let witness = VoteWitness::generate_random_witness(&pp);
-        let inputPF = VotePfPublicInput::generate_random_input(&pp, &witness);
-        let voter_number = 1;
+        let inputpf = VotepfPublicInput::generate_random_input(&pp, &witness);
         let pk = ElGamalPublicKey {
             pp: pp.clone(),
             h: BigInt::from(4),
         };
-        let params = &SystemParameters::create_supervisor(&pp);
-        let voter = Voter::create(voter_number, params, &pk);
-        let proof = inputPF.votepf_prover(witness, &params);
-        let verification = proof.votepf_verifier(&inputPF, &params);
+        let mut params = SystemParameters::create_supervisor(&pp);
+        params.set_encrypted_list(pk.clone());
+        let proof = inputpf.votepf_prover(witness, &params);
+        let verification = proof.votepf_verifier(&inputpf, &params);
         assert!(verification);
     }
 
     #[test]
-    pub fn test_reenc_in_list_1_out_of_L() {
+    pub fn test_reenc_in_list_1_out_of_l() {
         let group_id = SupportedGroups::FFDHE4096;
         let pp = ElGamalPP::generate_from_rfc7919(group_id);
         let key_pair = ElGamalKeyPair::generate(&pp);
         let msg = BigInt::from(72364932);
         let ctx = &ElGamal::encrypt(&msg, &key_pair.pk).unwrap();
-        let L = 3;
-        let mut C_list: Vec<ElGamalCiphertext> = (0..L)
+        let l = 3;
+        let mut c_list: Vec<ElGamalCiphertext> = (0..l)
             .map(|_| ElGamal::encrypt(&BigInt::sample_below(&pp.q), &key_pair.pk).unwrap())
             .collect();
 
@@ -48,28 +47,28 @@ pub mod test_zk_proofs {
             ctx: ctx.clone(),
             pk: &key_pair.pk,
         };
-        C_list[t] = reencrypt(&cipher, &enc_key);
+        c_list[t] = reencrypt(&cipher, &enc_key);
         let input = ReencProofInput {
-            c_list: C_list,
+            c_list: c_list,
             c: ctx.clone(),
         };
-        let proof = input.reenc_in_list_1_out_of_L_prove(&pp, &key_pair.pk, t, enc_key, L);
-        let verification = input.reenc_1_out_of_L_verifier(&pp, &key_pair.pk, &proof, L);
+        let proof = input.reenc_in_list_1_out_of_l_prove(&pp, &key_pair.pk, t, enc_key, l);
+        let verification = input.reenc_1_out_of_l_verifier(&pp, &key_pair.pk, &proof, l);
         assert!(verification);
     }
 
     #[test]
-    pub fn test_reenc_out_list_1_out_of_L() {
+    pub fn test_reenc_out_list_1_out_of_l() {
         let group_id = SupportedGroups::FFDHE4096;
         let pp = ElGamalPP::generate_from_rfc7919(group_id);
         let key_pair = ElGamalKeyPair::generate(&pp);
-        let L = 3;
-        let C_list: Vec<ElGamalCiphertext> = (0..L)
+        let l = 3;
+        let c_list: Vec<ElGamalCiphertext> = (0..l)
             .map(|_| ElGamal::encrypt(&BigInt::sample_below(&pp.q), &key_pair.pk).unwrap())
             .collect();
         let t = 1;
         let c_t = ElGamalCipherTextAndPK {
-            ctx: C_list[t].clone(),
+            ctx: c_list[t].clone(),
             pk: &key_pair.pk,
         };
         let nonce = BigInt::from(17);
@@ -77,16 +76,16 @@ pub mod test_zk_proofs {
 
         let ctx = reencrypt(&c_t, &nonce);
         let input = ReencProofInput {
-            c_list: C_list,
+            c_list: c_list,
             c: ctx,
         };
-        let proof = input.reenc_out_of_list_1_out_of_L_prove(&pp, &key_pair.pk, t, nonce, L);
-        let verification = input.reenc_1_out_of_L_verifier(&pp, &key_pair.pk, &proof, L);
+        let proof = input.reenc_out_of_list_1_out_of_l_prove(&pp, &key_pair.pk, t, nonce, l);
+        let verification = input.reenc_1_out_of_l_verifier(&pp, &key_pair.pk, &proof, l);
         assert!(verification);
     }
 
     #[test]
-    fn test_DVRP() {
+    fn test_dvrp() {
         let group_id = SupportedGroups::FFDHE4096;
         let pp = ElGamalPP::generate_from_rfc7919(group_id);
         //println!("pk = {:?}, g={:?}", key_pair.pk.h, key_pair.pk.pp.g);
@@ -114,13 +113,13 @@ pub mod test_zk_proofs {
         );
 
         let dvrp_input = DvrpPublicInput::create_input(voter.get_pk(), voter.get_pk(), &e, &e_tag);
-        let dvrp_proof = DVRP_prover(&voter, &dvrp_input, eta);
-        let dvrp_verfication_pass = DVRP_verifier(&voter, &dvrp_input, &dvrp_proof);
+        let dvrp_proof = dvrp_prover(&voter, &dvrp_input, eta);
+        let dvrp_verfication_pass = dvrp_verifier(&voter, &dvrp_input, &dvrp_proof);
         assert!(dvrp_verfication_pass);
     }
 
     #[test]
-    fn test_fake_DVRP() {
+    fn test_fake_dvrp() {
         let group_id = SupportedGroups::FFDHE4096;
         let pp = ElGamalPP::generate_from_rfc7919(group_id);
         let voter_number = 1;
@@ -147,8 +146,8 @@ pub mod test_zk_proofs {
         );
 
         let dvrp_input = DvrpPublicInput::create_input(voter.get_pk(), voter.get_pk(), &e, &e_tag);
-        let dvrp_proof = fakeDVRP_prover(&voter, &dvrp_input);
-        let dvrp_verfication_pass = DVRP_verifier(&voter, &dvrp_input, &dvrp_proof);
+        let dvrp_proof = fakedvrp_prover(&voter, &dvrp_input);
+        let dvrp_verfication_pass = dvrp_verifier(&voter, &dvrp_input, &dvrp_proof);
         assert!(dvrp_verfication_pass);
     }
 }

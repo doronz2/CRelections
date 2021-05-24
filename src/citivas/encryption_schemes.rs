@@ -45,19 +45,7 @@ pub fn encoding_quadratic_residue(m: BigInt, pp: &elgamal::ElGamalPP) -> BigInt 
     };
 }
 
-pub fn decoding_quadratic_residue(encoded_vote: BigInt, pp: &elgamal::ElGamalPP) -> BigInt {
-    //modify m by adding 1 to m because the subgroup Gq does not include the value zero
-    //Be very aware of that as it may originate a bug somewhere in the code!!!
-    let encoded_modified = BigInt::mod_sub(&encoded_vote, &BigInt::one(), &pp.p);
-    //check if m is QR according to Euler criterion
-    let test_if_QR = BigInt::mod_pow(&encoded_modified, &pp.q, &pp.p);
-    //if m is QR then return m otherwise return p - m
-    return if test_if_QR == BigInt::one() {
-        encoded_modified
-    } else {
-        BigInt::mod_sub(&pp.p, &encoded_vote, &pp.p)
-    };
-}
+
 
 impl NonMellableElgamal {
     //a simple EG encryption (a,b) that is signed with Schnorr (c,d)
@@ -105,21 +93,21 @@ impl NonMellableElgamal {
 
     pub fn encrypt_credential(
         share: &BigInt,
-        KTT: &ElGamalPublicKey,
+        ktt: &ElGamalPublicKey,
         r: &BigInt,
         rid: i32,
         vid: i32,
     ) -> Result<NonMellableElgamal, ElGamalError> {
-        //Public key KTT
+        //Public key ktt
         //private credential share s ∈ M
         //Randomization factor r ∈ Z∗q ,
         //Identifiers of registration teller, rid , and voter, vid
-        if share.ge(&KTT.pp.p) || r.ge(&KTT.pp.q) {
+        if share.ge(&ktt.pp.p) || r.ge(&ktt.pp.q) {
             return Err(ElGamalError::EncryptionError);
         }
-        let cipher = ElGamal::encrypt_from_predefined_randomness(&share, &KTT, &r).unwrap();
-        let t = BigInt::sample_below(&KTT.pp.q);
-        let g_t = BigInt::mod_pow(&KTT.pp.g, &t, &KTT.pp.p);
+        let cipher = ElGamal::encrypt_from_predefined_randomness(&share, &ktt, &r).unwrap();
+        let t = BigInt::sample_below(&ktt.pp.q);
+        let g_t = BigInt::mod_pow(&ktt.pp.g, &t, &ktt.pp.p);
         let a = cipher.c1;
         let b = cipher.c2;
         let c = hash_sha256::HSha256::create_hash(&[
@@ -129,8 +117,8 @@ impl NonMellableElgamal {
             &BigInt::from(rid),
             &BigInt::from(vid),
         ])
-        .mod_floor(&KTT.pp.q);
-        let d = BigInt::mod_add(&t, &BigInt::mod_mul(&c, &r, &KTT.pp.q), &&KTT.pp.q);
+        .mod_floor(&ktt.pp.q);
+        let d = BigInt::mod_add(&t, &BigInt::mod_mul(&c, &r, &ktt.pp.q), &&ktt.pp.q);
         Ok(Self { a, b, c, d })
     }
 
