@@ -1,5 +1,3 @@
-use curv::BigInt;
-use elgamal::{ElGamalCiphertext, ElGamalPP, ElGamalPublicKey, };
 use crate::citivas::entity::Entity;
 use crate::citivas::supervisor::SystemParameters;
 use crate::citivas::voter::Voter;
@@ -7,6 +5,8 @@ use curv::arithmetic::traits::Modulo;
 use curv::arithmetic::traits::Samplable;
 use curv::cryptographic_primitives::hashing::hash_sha256;
 use curv::cryptographic_primitives::hashing::traits::Hash;
+use curv::BigInt;
+use elgamal::{ElGamalCiphertext, ElGamalPP, ElGamalPublicKey};
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 use vice_city::ProofError;
@@ -256,8 +256,8 @@ impl ReencProofInput {
 
         let c = hash_sha256::HSha256::create_hash(&e).mod_floor(&pp.q);
         let sum: BigInt = proof.d.iter().fold(BigInt::zero(), |a, b| a + b);
-        let D = sum.mod_floor(&pp.q);
-        return c == D;
+        let d = sum.mod_floor(&pp.q);
+        return c == d;
     }
 
     // The following function proves that c=(u,v) is an encryption of some c_t (for a private t) in a list of ciphers c_1,...,c_l (See PROTOCOL: Reencpf in Civitas)

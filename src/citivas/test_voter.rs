@@ -27,11 +27,11 @@ pub mod test_voter {
         let dvrp_input = DvrpPublicInput::create_input(
             &voter.designation_key_pair.pk.h,
             registrar.get_pk(),
-            &share.S_i_tag,
-            &share.S_i,
+            &share.public_credential_i_tag,
+            &share.public_credential_i,
         );
         let cred_share_output = registrar.publish_credential_with_proof(&share, dvrp_input);
-        assert!(voter.verify_credentials(&cred_share_output, &share.S_i));
+        assert!(voter.verify_credentials(&cred_share_output, &share.public_credential_i));
     }
 
     #[test]
@@ -58,20 +58,20 @@ pub mod test_voter {
         let dvrp_input_1 = DvrpPublicInput::create_input(
             &voter.designation_key_pair.pk.h,
             registrar_1.get_pk(),
-            &share_1.S_i_tag,
-            &share_1.S_i,
+            &share_1.public_credential_i_tag,
+            &share_1.public_credential_i,
         );
         let dvrp_input_2 = DvrpPublicInput::create_input(
             &voter.designation_key_pair.pk.h,
             registrar_2.get_pk(),
-            &share_2.S_i_tag,
-            &share_2.S_i,
+            &share_2.public_credential_i_tag,
+            &share_2.public_credential_i,
         );
         let dvrp_input_3 = DvrpPublicInput::create_input(
             &voter.designation_key_pair.pk.h,
             registrar_3.get_pk(),
-            &share_3.S_i_tag,
-            &share_3.S_i,
+            &share_3.public_credential_i_tag,
+            &share_3.public_credential_i,
         );
 
         let cred_share_output_1 = registrar_1.publish_credential_with_proof(&share_1, dvrp_input_1);
@@ -86,9 +86,8 @@ pub mod test_voter {
                 cred_share_output_2,
                 cred_share_output_3,
             ],
-            vec![share_1.S_i, share_2.S_i, bad_encryption],
+            vec![share_1.public_credential_i, share_2.public_credential_i, bad_encryption],
         );
-
     }
 
     #[test]

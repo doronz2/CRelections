@@ -2,9 +2,7 @@ use curv::arithmetic::traits::Modulo;
 use curv::cryptographic_primitives::hashing::hash_sha256;
 use curv::cryptographic_primitives::hashing::traits::Hash;
 use curv::BigInt;
-use elgamal::{
-     ElGamalCiphertext, ElGamalKeyPair, ElGamalPP, ElGamalPublicKey,
-};
+use elgamal::{ElGamalCiphertext, ElGamalKeyPair, ElGamalPP, ElGamalPublicKey};
 use serde::{Deserialize, Serialize};
 use vice_city::utlities::ddh_proof::{DDHProof, DDHStatement, DDHWitness, NISigmaProof};
 use vice_city::utlities::dlog_proof::{DLogProof, ProveDLog, Statement, Witness};
@@ -46,8 +44,6 @@ pub struct DistDecryptEGMsg {
     proof: DDHProof,
     party_index: i32,
 }
-
-
 
 impl DistElGamal {
     //------ Distributed El Gamal Key Generation --------
@@ -215,9 +211,9 @@ mod test {
     use super::*;
     use crate::citivas::encryption_schemes::encoding_quadratic_residue;
     use crate::ElGamal;
+    use curv::arithmetic::traits::Samplable;
     use elgamal::rfc7919_groups::SupportedGroups;
     use elgamal::ElGamalPrivateKey;
-    use curv::arithmetic::traits::Samplable;
 
     #[test]
     pub fn test_generate_key_from_shares() {

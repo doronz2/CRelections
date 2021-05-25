@@ -1,19 +1,14 @@
-
-
-use crate::citivas::supervisor::{NUMBER_OF_CANDIDATES, SystemParameters};
-use crate::citivas::tellers::Teller;
-use crate::citivas::voter:: Voter;
-use crate::citivas::zkproofs::DvrpPublicInput;
-use crate::SupportedGroups;
-use std::ops::Sub;
-use elgamal::ElGamalPP;
-use crate::citivas::dist_el_gamal::{CommitmentKeyGen, DistElGamal, KeyProof, DistDecryptEGMsg};
-use curv::BigInt;
+use crate::citivas::dist_el_gamal::{CommitmentKeyGen, DistDecryptEGMsg, DistElGamal, KeyProof};
 use crate::citivas::entity::Entity;
 use crate::citivas::registrar::Registrar;
-
-
-
+use crate::citivas::supervisor::{SystemParameters, NUMBER_OF_CANDIDATES};
+use crate::citivas::tellers::Teller;
+use crate::citivas::voter::Voter;
+use crate::citivas::zkproofs::DvrpPublicInput;
+use crate::SupportedGroups;
+use curv::BigInt;
+use elgamal::ElGamalPP;
+use std::ops::Sub;
 
 #[test]
 pub fn integration_test() {
@@ -97,41 +92,41 @@ pub fn integration_test() {
     let dvrp_input_voter_1_cred_1 = DvrpPublicInput::create_input(
         &voter_1.get_pk(),
         registrar_1.get_pk(),
-        &credential_share_1_for_voter_1.S_i_tag,
-        &credential_share_1_for_voter_1.S_i,
+        &credential_share_1_for_voter_1.public_credential_i_tag,
+        &credential_share_1_for_voter_1.public_credential_i,
     );
     let dvrp_input_voter_1_cred_2 = DvrpPublicInput::create_input(
         &voter_1.get_pk(),
         registrar_2.get_pk(),
-        &credential_share_2_for_voter_1.S_i_tag,
-        &credential_share_2_for_voter_1.S_i,
+        &credential_share_2_for_voter_1.public_credential_i_tag,
+        &credential_share_2_for_voter_1.public_credential_i,
     );
     let dvrp_input_voter_2_cred_1 = DvrpPublicInput::create_input(
         &voter_2.get_pk(),
         registrar_1.get_pk(),
-        &credential_share_1_for_voter_2.S_i_tag,
-        &credential_share_1_for_voter_2.S_i,
+        &credential_share_1_for_voter_2.public_credential_i_tag,
+        &credential_share_1_for_voter_2.public_credential_i,
     );
     let dvrp_input_voter_2_cred_2 = DvrpPublicInput::create_input(
         &voter_2.get_pk(),
         registrar_2.get_pk(),
-        &credential_share_2_for_voter_2.S_i_tag,
-        &credential_share_2_for_voter_2.S_i,
+        &credential_share_2_for_voter_2.public_credential_i_tag,
+        &credential_share_2_for_voter_2.public_credential_i,
     );
     let dvrp_input_voter_3_cred_1 = DvrpPublicInput::create_input(
         &voter_3.get_pk(),
         registrar_1.get_pk(),
-        &credential_share_1_for_voter_3.S_i_tag,
-        &credential_share_1_for_voter_3.S_i,
+        &credential_share_1_for_voter_3.public_credential_i_tag,
+        &credential_share_1_for_voter_3.public_credential_i,
     );
     let dvrp_input_voter_3_cred_2 = DvrpPublicInput::create_input(
         &voter_3.get_pk(),
         registrar_2.get_pk(),
-        &credential_share_2_for_voter_3.S_i_tag,
-        &credential_share_2_for_voter_3.S_i,
+        &credential_share_2_for_voter_3.public_credential_i_tag,
+        &credential_share_2_for_voter_3.public_credential_i,
     );
 
-    //publish credential and proof (via dvrp proof) that S'_i is reencryption of S_i
+    //publish credential and proof (via dvrp proof) that S'_i is reencryption of public_credential_i
     let cred_share_output_1_voter_1 = registrar_1
         .publish_credential_with_proof(&credential_share_1_for_voter_1, dvrp_input_voter_1_cred_1);
     let cred_share_output_2_voter_1 = registrar_2
@@ -149,22 +144,22 @@ pub fn integration_test() {
     let voter_1_private_credential = voter_1.construct_private_credential_from_shares(
         vec![cred_share_output_1_voter_1, cred_share_output_2_voter_1],
         vec![
-            credential_share_1_for_voter_1.S_i,
-            credential_share_2_for_voter_1.S_i,
+            credential_share_1_for_voter_1.public_credential_i,
+            credential_share_2_for_voter_1.public_credential_i,
         ],
     );
     let voter_2_private_credential = voter_2.construct_private_credential_from_shares(
         vec![cred_share_output_1_voter_2, cred_share_output_2_voter_2],
         vec![
-            credential_share_1_for_voter_2.S_i,
-            credential_share_2_for_voter_2.S_i,
+            credential_share_1_for_voter_2.public_credential_i,
+            credential_share_2_for_voter_2.public_credential_i,
         ],
     );
     let voter_3_private_credential = voter_3.construct_private_credential_from_shares(
         vec![cred_share_output_1_voter_3, cred_share_output_2_voter_3],
         vec![
-            credential_share_1_for_voter_3.S_i,
-            credential_share_2_for_voter_3.S_i,
+            credential_share_1_for_voter_3.public_credential_i,
+            credential_share_2_for_voter_3.public_credential_i,
         ],
     );
 

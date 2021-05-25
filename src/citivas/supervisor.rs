@@ -1,7 +1,6 @@
 use crate::citivas::encryption_schemes::encoding_quadratic_residue;
 use curv::BigInt;
-use elgamal::{
-    ElGamal, ElGamalCiphertext, ElGamalPP, ElGamalPublicKey};
+use elgamal::{ElGamal, ElGamalCiphertext, ElGamalPP, ElGamalPublicKey};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 #[allow(dead_code)]
@@ -18,7 +17,7 @@ pub struct SystemParameters {
     pub num_of_tellers: usize,
     pub num_of_voters: usize,
     pub num_of_candidates: usize,
-    pub O: BigInt, //a set (of size O) is specified in Citivas where random parameter are selected from
+    pub o: BigInt, //a set (of size O) is specified in Citivas where random parameter are selected from
     pub nonce_for_candidate_encryption: BigInt, //the reason for publishing this is that it is needed for computing the witness in votepf. //The reason not to hide the candidate under the encryption is that the encryption is done (AFAIK) for creating a data format that allows to prove  reenc 1 out of L
     pub encrypted_candidate_list: Option<Vec<ElGamalCiphertext>>,
     pub eid: i32, //identifier of election
@@ -34,7 +33,7 @@ impl SystemParameters {
             num_of_tellers: NUMBER_OF_TALLIES,
             num_of_voters: NUMBER_OF_VOTERS,
             num_of_candidates: NUMBER_OF_CANDIDATES,
-            O: BigInt::from_str(O_STRING).unwrap(),
+            o: BigInt::from_str(O_STRING).unwrap(),
             nonce_for_candidate_encryption,
             eid: 0,
             encrypted_candidate_list: None,
@@ -42,7 +41,7 @@ impl SystemParameters {
     }
 
     pub fn set_encrypted_list(&mut self, shared_pk: ElGamalPublicKey) {
-        //encode the msg before encryption (QR encoding)
+        //encode the msg before encryption (qr encoding)
         let encoded_candidates: Vec<BigInt> = (0..NUMBER_OF_CANDIDATES)
             .map(|candidate| encoding_quadratic_residue(BigInt::from(candidate as i32), &self.pp))
             .collect();
@@ -58,5 +57,4 @@ impl SystemParameters {
             .collect();
         self.encrypted_candidate_list = Some(encrypted_candidate_list);
     }
-
 }

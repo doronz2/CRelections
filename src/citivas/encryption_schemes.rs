@@ -35,17 +35,15 @@ pub fn encoding_quadratic_residue(m: BigInt, pp: &elgamal::ElGamalPP) -> BigInt 
     //modify m by adding 1 to m because the subgroup Gq does not include the value zero
     //Be very aware of that as it may originate a bug somewhere in the code!!!
     let m_modified = BigInt::mod_add(&m, &BigInt::one(), &pp.p);
-    //check if m is QR according to Euler criterion
-    let test_if_QR = BigInt::mod_pow(&m_modified, &pp.q, &pp.p);
-    //if m is QR then return m otherwise return p - m
-    return if test_if_QR == BigInt::one() {
+    //check if m is qr according to Euler criterion
+    let test_if_qr = BigInt::mod_pow(&m_modified, &pp.q, &pp.p);
+    //if m is qr then return m otherwise return p - m
+    return if test_if_qr == BigInt::one() {
         m_modified
     } else {
         BigInt::mod_sub(&pp.p, &m_modified, &pp.p)
     };
 }
-
-
 
 impl NonMellableElgamal {
     //a simple EG encryption (a,b) that is signed with Schnorr (c,d)
@@ -70,22 +68,23 @@ impl NonMellableElgamal {
     }
 
     pub fn decrypt(
-        NMcipher: NonMellableElgamal,
+        nm_cipher: NonMellableElgamal,
         x: &ElGamalPrivateKey,
     ) -> Result<BigInt, ElGamalError> {
-        let g_d = BigInt::mod_pow(&x.pp.g, &NMcipher.d, &x.pp.p);
+        let g_d = BigInt::mod_pow(&x.pp.g, &nm_cipher.d, &x.pp.p);
         let a_c_inv = BigInt::mod_inv(
-            &BigInt::mod_pow(&NMcipher.a, &NMcipher.c, &x.pp.p),
+            &BigInt::mod_pow(&nm_cipher.a, &nm_cipher.c, &x.pp.p),
             &&x.pp.p,
         );
         let pre_hash_left_term = BigInt::mod_mul(&g_d, &a_c_inv, &x.pp.p);
-        let V = hash_sha256::HSha256::create_hash(&[&pre_hash_left_term, &NMcipher.a, &NMcipher.b]);
-        if V != NMcipher.c {
+        let v =
+            hash_sha256::HSha256::create_hash(&[&pre_hash_left_term, &nm_cipher.a, &nm_cipher.b]);
+        if v != nm_cipher.c {
             panic!("received an invalid non malleable cipher!");
         }
         let cipher = ElGamalCiphertext {
-            c1: NMcipher.a,
-            c2: NMcipher.b,
+            c1: nm_cipher.a,
+            c2: nm_cipher.b,
             pp: x.pp.clone(),
         };
         ExponentElGamal::decrypt_exp(&cipher, &x)
@@ -138,14 +137,14 @@ impl NonMellableElgamal {
             &&pp.p,
         );
         let pre_hash_left_term = BigInt::mod_mul(&g_d, &a_c_inv, &pp.p);
-        let V = hash_sha256::HSha256::create_hash(&[
+        let v = hash_sha256::HSha256::create_hash(&[
             &pre_hash_left_term,
             &public_credential_share.a,
             &public_credential_share.b,
             &BigInt::from(rid),
             &BigInt::from(vid),
         ]);
-        V == public_credential_share.c
+        v == public_credential_share.c
     }
 }
 

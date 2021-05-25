@@ -1,8 +1,8 @@
-use curv::BigInt;
-use elgamal::{ElGamalCiphertext, ElGamalPublicKey};
 use curv::arithmetic::traits::Samplable;
 use curv::cryptographic_primitives::hashing::hash_sha256;
 use curv::cryptographic_primitives::hashing::traits::Hash;
+use curv::BigInt;
+use elgamal::{ElGamalCiphertext, ElGamalPublicKey};
 
 use serde::{Deserialize, Serialize};
 
@@ -15,7 +15,6 @@ use rand::seq::SliceRandom;
 use rand::thread_rng;
 const OUT: bool = true;
 const IN: bool = false;
-
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Teller {
@@ -44,7 +43,6 @@ impl Teller {
             teller_index,
         }
     }
-
 }
 
 pub struct TellerMixingParams {
@@ -100,7 +98,7 @@ impl Teller {
             r_list.push(r_i.clone());
             l_r.push(reencrypt(&permuted_ctx[i], &r_i));
 
-            let w_i = BigInt::sample_below(&self.sp.O);
+            let w_i = BigInt::sample_below(&self.sp.o);
             w_list.push(w_i.clone());
 
             if dir == IN {
@@ -153,5 +151,4 @@ impl Teller {
 
         check_1 && check_2
     }
-
 }

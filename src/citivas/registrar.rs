@@ -4,7 +4,6 @@ use elgamal::{ElGamal, ElGamalCiphertext, ElGamalPP, ElGamalPublicKey};
 use crate::citivas::encryption_schemes::{reencrypt, ElGamalCipherTextAndPK};
 use curv::arithmetic::traits::Samplable;
 use serde::{Deserialize, Serialize};
-
 use crate::citivas::entity::Entity;
 use crate::citivas::supervisor::SystemParameters;
 use crate::citivas::zkproofs::{dvrp_prover, DvrpProof, DvrpPublicInput};
@@ -60,18 +59,18 @@ impl Registrar {
 
 #[derive(Debug)]
 pub struct CredentialShare {
-    pub s_i: BigInt,                //private credential share
-    pub S_i: ElGamalCiphertext,     // Public credential share
-    pub S_i_tag: ElGamalCiphertext, // Public credential share
-    pub r_i: BigInt,                // randomness for encrypting S_i_tag
-    pub eta: BigInt,                // randomness for reencryption to obtain S_i
+    pub private_credential_i: BigInt,                //private credential share
+    pub public_credential_i: ElGamalCiphertext,     // Public credential share
+    pub public_credential_i_tag: ElGamalCiphertext, // Public credential share
+    pub r_i: BigInt,                // randomness for encrypting public_credential_i_tag
+    pub eta: BigInt,                // randomness for reencryption to obtain public_credential_i
 }
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct CredetialShareOutput {
-    pub s_i: BigInt,                //private credential share
-    pub S_i_tag: ElGamalCiphertext, // Public credential share
-    pub r_i: BigInt,                // randomness for encrypting S_i_tag
+    pub private_credential_i: BigInt,                //private credential share
+    pub public_credential_i_tag: ElGamalCiphertext, // Public credential share
+    pub r_i: BigInt,                // randomness for encrypting public_credential_i_tag
     pub dvrp_proof: DvrpProof,
     pub dvrp_prover_pk: BigInt,
 }
@@ -80,13 +79,13 @@ impl CredetialShareOutput {
     pub fn get_dvrp_input<'a>(
         &'a self,
         voter_pk: &'a BigInt,
-        S_i: &'a ElGamalCiphertext,
+        public_credential_i: &'a ElGamalCiphertext,
     ) -> DvrpPublicInput<'a> {
         DvrpPublicInput {
             voter_public_key: voter_pk,
             prover_public_key: &self.dvrp_prover_pk,
-            e: &self.S_i_tag,
-            e_tag: &S_i,
+            e: &self.public_credential_i_tag,
+            e_tag: &public_credential_i,
         }
     }
 }
@@ -94,22 +93,22 @@ impl CredetialShareOutput {
 impl Registrar {
     pub fn create_credential_share(&self) -> CredentialShare {
         let pp = &self.params.pp.clone();
-        let s_i = BigInt::sample_below(&pp.q);
-        // let s_i = encoding_quadratic_residue(BigInt::sample_below(&pp.q);
+        let private_credential_i = BigInt::sample_below(&pp.q);
+        // let private_credential_i = encoding_quadratic_residue(BigInt::sample_below(&pp.q);
         let r_i = BigInt::sample_below(&pp.q);
-        let S_i_tag = ElGamal::encrypt_from_predefined_randomness(&s_i, &self.ktt, &r_i).unwrap();
+        let public_credential_i_tag = ElGamal::encrypt_from_predefined_randomness(&private_credential_i, &self.ktt, &r_i).unwrap();
         let eta = BigInt::sample_below(&pp.q);
-        let S_i = reencrypt(
+        let public_credential_i = reencrypt(
             &ElGamalCipherTextAndPK {
-                ctx: S_i_tag.clone(),
+                ctx: public_credential_i_tag.clone(),
                 pk: &self.ktt,
             },
             &eta,
         );
         CredentialShare {
-            s_i,
-            S_i,
-            S_i_tag,
+            private_credential_i,
+            public_credential_i,
+            public_credential_i_tag,
             r_i,
             eta,
         }
@@ -118,18 +117,18 @@ impl Registrar {
 
 
 
-    //publish credential share (s_i, S'_i, r_i) and a dvrp proof that S_i is reenc of S_i
+    //publish credential share (private_credential_i, S'_i, r_i) and a dvrp proof that public_credential_i is reenc of public_credential_i
     pub fn publish_credential_with_proof(
         &self,
         cred_share: &CredentialShare,
         dvrp_input: DvrpPublicInput,
     ) -> CredetialShareOutput {
         //  let cred_share = &self.cred_vec.get(voter_index).unwrap();
-        // let dvrp_input = &dvrpPublicInput{ e: &cred_share.S_i_tag, e_tag: &cred_share.S_i };
+        // let dvrp_input = &dvrpPublicInput{ e: &cred_share.public_credential_i_tag, e_tag: &cred_share.public_credential_i };
         let proof = dvrp_prover(self, &dvrp_input, cred_share.eta.clone());
         CredetialShareOutput {
-            s_i: cred_share.s_i.clone(),
-            S_i_tag: cred_share.S_i_tag.clone(),
+            private_credential_i: cred_share.private_credential_i.clone(),
+            public_credential_i_tag: cred_share.public_credential_i_tag.clone(),
             r_i: cred_share.r_i.clone(),
             dvrp_proof: proof,
             dvrp_prover_pk: dvrp_input.prover_public_key.clone(),
@@ -148,7 +147,7 @@ pub mod test_registrar {
     use crate::citivas::zkproofs::dvrp_verifier;
 
     #[test]
-    //This checks using dvrp that S’_i is a reencryption of S_i using dvrp
+    //This checks using dvrp that S’_i is a reencryption of public_credential_i using dvrp
     pub fn check_credential_proof() {
         let group_id = SupportedGroups::FFDHE4096;
         let pp = ElGamalPP::generate_from_rfc7919(group_id);
@@ -162,7 +161,7 @@ pub mod test_registrar {
         let share = registrar.create_credential_share();
         let voter_pk = &Voter::create(1, &params, &pk).designation_key_pair.pk.h;
         let dvrp_input =
-            DvrpPublicInput::create_input(voter_pk, registrar.get_pk(), &share.S_i_tag, &share.S_i);
+            DvrpPublicInput::create_input(voter_pk, registrar.get_pk(), &share.public_credential_i_tag, &share.public_credential_i);
         let cred_share_output = registrar.publish_credential_with_proof(&share, dvrp_input.clone());
         let check = dvrp_verifier(&registrar, &dvrp_input, &cred_share_output.dvrp_proof);
         assert!(check)

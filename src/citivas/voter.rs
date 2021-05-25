@@ -1,7 +1,5 @@
 use curv::BigInt;
-use elgamal::{
-    ElGamalCiphertext, ElGamalKeyPair, ElGamalPP, ElGamalPrivateKey, ElGamalPublicKey,
-};
+use elgamal::{ElGamalCiphertext, ElGamalKeyPair, ElGamalPP, ElGamalPrivateKey, ElGamalPublicKey};
 
 use curv::arithmetic::traits::Modulo;
 use curv::arithmetic::traits::Samplable;
@@ -40,8 +38,6 @@ pub struct Vote {
     pub(crate) pw: ReencProof, //a proof that shows ev is an encryption of one cipher (c_i) in the list of L candidates
 }
 
-
-
 impl Voter {
     //The following function is used for debugging
 
@@ -67,7 +63,7 @@ impl Voter {
     pub fn create(
         voter_number: usize,
         params: &SystemParameters,
-        sharedPK: &ElGamalPublicKey,
+        shared_pk: &ElGamalPublicKey,
     ) -> Self {
         if params.encrypted_candidate_list.is_none() {
             panic!("shared public must be set to the supervisor!");
@@ -80,7 +76,7 @@ impl Voter {
             pp: params.pp.clone(),
             private_credential: None,
             nonce_for_candidate_encryption: params.nonce_for_candidate_encryption.clone(),
-            ktt: sharedPK.clone(),
+            ktt: shared_pk.clone(),
             chosen_candidate: None,
             eid: params.eid,
             encrypted_candidate_list: params.encrypted_candidate_list.clone().unwrap(),
@@ -145,19 +141,19 @@ impl Entity for Voter {
 
 impl Voter {
     //The voter need to verify that:
-    // 1. S'_i = Enc(s_i, r; ktt)
-    // 2. S’_i is a reencryption of S_i using dvrp, where S_i is retrieved from the bulletin board
+    // 1. S'_i = Enc(private_credential_i, r; ktt)
+    // 2. S’_i is a reencryption of public_credential_i using dvrp, where public_credential_i is retrieved from the bulletin board
     pub fn verify_credentials(
         &self,
         cred_share: &CredetialShareOutput,
-        S_i: &ElGamalCiphertext, //comes from the bulletin board
+        public_credential_i: &ElGamalCiphertext, //comes from the bulletin board
     ) -> bool {
-        let verification_1: bool = cred_share.S_i_tag
-            == encrypt_from_predefined_randomness(&cred_share.s_i, &self.ktt, &cred_share.r_i)
+        let verification_1: bool = cred_share.public_credential_i_tag
+            == encrypt_from_predefined_randomness(&cred_share.private_credential_i, &self.ktt, &cred_share.r_i)
                 .unwrap();
         let verification_2 = dvrp_verifier(
             self,
-            &cred_share.get_dvrp_input(&self.designation_key_pair.pk.h, S_i),
+            &cred_share.get_dvrp_input(&self.designation_key_pair.pk.h, public_credential_i),
             &cred_share.dvrp_proof,
         );
         return verification_1 && verification_2;
@@ -166,18 +162,18 @@ impl Voter {
     pub fn construct_private_credential_from_shares(
         &mut self,
         received_credentials: Vec<CredetialShareOutput>,
-        S_i_vec: Vec<ElGamalCiphertext>,
+        public_credential_i_vec: Vec<ElGamalCiphertext>,
     ) -> Option<BigInt> {
         let length = received_credentials.len();
         let cred_constructed_from_valid_shares = (0..length)
             .map(|registrar_index| received_credentials.get(registrar_index).unwrap())
             .enumerate()
             .filter(|(registrar_index, cred)| {
-                self.verify_credentials(cred, S_i_vec.get(*registrar_index).unwrap())
+                self.verify_credentials(cred, public_credential_i_vec.get(*registrar_index).unwrap())
             })
-            .map(|(_, cred)| cred.clone().s_i)
+            .map(|(_, cred)| cred.clone().private_credential_i)
             .fold(BigInt::zero(), |sum, i| sum + i);
-          Some(cred_constructed_from_valid_shares)
+        Some(cred_constructed_from_valid_shares)
     }
 
     pub fn set_private_credential(&mut self, private_cred: BigInt) {

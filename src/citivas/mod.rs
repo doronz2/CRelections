@@ -1,4 +1,3 @@
-
 #[allow(dead_code)]
 mod dist_el_gamal;
 #[allow(dead_code)]
