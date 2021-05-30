@@ -1,12 +1,12 @@
 use curv::BigInt;
 
-use elgamal::{ElGamal, ElGamalCiphertext, ElGamalPP, ElGamalPublicKey};
 use crate::citivas::encryption_schemes::{reencrypt, ElGamalCipherTextAndPK};
-use curv::arithmetic::traits::Samplable;
-use serde::{Deserialize, Serialize};
 use crate::citivas::entity::Entity;
 use crate::citivas::supervisor::SystemParameters;
 use crate::citivas::zkproofs::{dvrp_prover, DvrpProof, DvrpPublicInput};
+use curv::arithmetic::traits::Samplable;
+use elgamal::{ElGamal, ElGamalCiphertext, ElGamalPP, ElGamalPublicKey};
+use serde::{Deserialize, Serialize};
 
 //use crate::macros;
 
@@ -54,23 +54,22 @@ impl Registrar {
             ktt,
         }
     }
-
 }
 
 #[derive(Debug)]
 pub struct CredentialShare {
-    pub private_credential_i: BigInt,                //private credential share
-    pub public_credential_i: ElGamalCiphertext,     // Public credential share
+    pub private_credential_i: BigInt, //private credential share
+    pub public_credential_i: ElGamalCiphertext, // Public credential share
     pub public_credential_i_tag: ElGamalCiphertext, // Public credential share
-    pub r_i: BigInt,                // randomness for encrypting public_credential_i_tag
-    pub eta: BigInt,                // randomness for reencryption to obtain public_credential_i
+    pub r_i: BigInt,                  // randomness for encrypting public_credential_i_tag
+    pub eta: BigInt,                  // randomness for reencryption to obtain public_credential_i
 }
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct CredetialShareOutput {
-    pub private_credential_i: BigInt,                //private credential share
+    pub private_credential_i: BigInt, //private credential share
     pub public_credential_i_tag: ElGamalCiphertext, // Public credential share
-    pub r_i: BigInt,                // randomness for encrypting public_credential_i_tag
+    pub r_i: BigInt,                  // randomness for encrypting public_credential_i_tag
     pub dvrp_proof: DvrpProof,
     pub dvrp_prover_pk: BigInt,
 }
@@ -96,7 +95,9 @@ impl Registrar {
         let private_credential_i = BigInt::sample_below(&pp.q);
         // let private_credential_i = encoding_quadratic_residue(BigInt::sample_below(&pp.q);
         let r_i = BigInt::sample_below(&pp.q);
-        let public_credential_i_tag = ElGamal::encrypt_from_predefined_randomness(&private_credential_i, &self.ktt, &r_i).unwrap();
+        let public_credential_i_tag =
+            ElGamal::encrypt_from_predefined_randomness(&private_credential_i, &self.ktt, &r_i)
+                .unwrap();
         let eta = BigInt::sample_below(&pp.q);
         let public_credential_i = reencrypt(
             &ElGamalCipherTextAndPK {
@@ -113,9 +114,6 @@ impl Registrar {
             eta,
         }
     }
-
-
-
 
     //publish credential share (private_credential_i, S'_i, r_i) and a dvrp proof that public_credential_i is reenc of public_credential_i
     pub fn publish_credential_with_proof(
@@ -139,12 +137,10 @@ impl Registrar {
 #[cfg(test)]
 pub mod test_registrar {
     use super::*;
-    use elgamal::{
-        rfc7919_groups::SupportedGroups,
-    };
     use crate::citivas::supervisor::SystemParameters;
     use crate::citivas::voter::Voter;
     use crate::citivas::zkproofs::dvrp_verifier;
+    use elgamal::rfc7919_groups::SupportedGroups;
 
     #[test]
     //This checks using dvrp that S’_i is a reencryption of public_credential_i using dvrp
@@ -160,8 +156,12 @@ pub mod test_registrar {
         let registrar = Registrar::create(0, params.clone(), pk.clone());
         let share = registrar.create_credential_share();
         let voter_pk = &Voter::create(1, &params, &pk).designation_key_pair.pk.h;
-        let dvrp_input =
-            DvrpPublicInput::create_input(voter_pk, registrar.get_pk(), &share.public_credential_i_tag, &share.public_credential_i);
+        let dvrp_input = DvrpPublicInput::create_input(
+            voter_pk,
+            registrar.get_pk(),
+            &share.public_credential_i_tag,
+            &share.public_credential_i,
+        );
         let cred_share_output = registrar.publish_credential_with_proof(&share, dvrp_input.clone());
         let check = dvrp_verifier(&registrar, &dvrp_input, &cred_share_output.dvrp_proof);
         assert!(check)

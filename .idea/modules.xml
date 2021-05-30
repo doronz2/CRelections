@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/CRelections.iml" filepath="$PROJECT_DIR$/CRelections.iml" />
+      <module fileurl="file://$PROJECT_DIR$/coersion_resistant_elections.iml" filepath="$PROJECT_DIR$/coersion_resistant_elections.iml" />
     </modules>
   </component>
 </project>

@@ -149,8 +149,12 @@ impl Voter {
         public_credential_i: &ElGamalCiphertext, //comes from the bulletin board
     ) -> bool {
         let verification_1: bool = cred_share.public_credential_i_tag
-            == encrypt_from_predefined_randomness(&cred_share.private_credential_i, &self.ktt, &cred_share.r_i)
-                .unwrap();
+            == encrypt_from_predefined_randomness(
+                &cred_share.private_credential_i,
+                &self.ktt,
+                &cred_share.r_i,
+            )
+            .unwrap();
         let verification_2 = dvrp_verifier(
             self,
             &cred_share.get_dvrp_input(&self.designation_key_pair.pk.h, public_credential_i),
@@ -169,11 +173,18 @@ impl Voter {
             .map(|registrar_index| received_credentials.get(registrar_index).unwrap())
             .enumerate()
             .filter(|(registrar_index, cred)| {
-                self.verify_credentials(cred, public_credential_i_vec.get(*registrar_index).unwrap())
+                self.verify_credentials(
+                    cred,
+                    public_credential_i_vec.get(*registrar_index).unwrap(),
+                )
             })
             .map(|(_, cred)| cred.clone().private_credential_i)
             .fold(BigInt::zero(), |sum, i| sum + i);
-        Some(cred_constructed_from_valid_shares)
+        return if cred_constructed_from_valid_shares.is_zero() {
+            None
+        } else {
+            Some(cred_constructed_from_valid_shares)
+        }
     }
 
     pub fn set_private_credential(&mut self, private_cred: BigInt) {

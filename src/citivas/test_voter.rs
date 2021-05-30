@@ -86,8 +86,13 @@ pub mod test_voter {
                 cred_share_output_2,
                 cred_share_output_3,
             ],
-            vec![share_1.public_credential_i, share_2.public_credential_i, bad_encryption],
+            vec![
+                share_1.public_credential_i,
+                share_2.public_credential_i,
+                bad_encryption,
+            ],
         );
+        assert!(private_credential.is_some())
     }
 
     #[test]

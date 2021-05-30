@@ -3,18 +3,6 @@
 version = 3
 
 [[package]]
-name = "CRelections"
-version = "0.1.0"
-dependencies = [
- "curv 0.2.6",
- "elgamal",
- "rand",
- "rayon",
- "serde",
- "vice-city",
-]
-
-[[package]]
 name = "arrayref"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -126,6 +114,18 @@ name = "constant_time_eq"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "245097e9a4535ee1e3e3931fcfcd55a796a44c643e8596ff6566d68f09b87bbc"
+
+[[package]]
+name = "cr_elections"
+version = "0.1.0"
+dependencies = [
+ "curv 0.2.6",
+ "elgamal",
+ "rand",
+ "rayon",
+ "serde",
+ "vice-city",
+]
 
 [[package]]
 name = "crossbeam-channel"

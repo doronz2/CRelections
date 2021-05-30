@@ -1,5 +1,5 @@
 [package]
-name = "CRelections"
+name = "cr_elections"
 version = "0.1.0"
 authors = ["Doron Zarchy"]
 edition = "2018"

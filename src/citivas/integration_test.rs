@@ -206,7 +206,7 @@ pub fn integration_test() {
             panic!("no share has been validated");
         }
         println!(
-            "number of valid shares for voter {} is = {:?}",
+            "Number of valid shares of voter {} is = {:?}",
             i,
             valid_shares_for_decryption.len()
         );
