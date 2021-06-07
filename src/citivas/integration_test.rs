@@ -21,7 +21,8 @@ pub fn integration_test() {
     //supervisor create params
     //tellers create ktt public key
     //registrar create credentials
-    // voters construct credential and vote
+    // voters combines the private credential (and verify their validity via DVRP proof in CredentialShareOutput)
+    // voter vote
     // tellers decrypt all the massages, read all the vote, and score each candidate
 
     //Three candidates
@@ -71,7 +72,7 @@ pub fn integration_test() {
     assert_eq!(shared_public_key, shared_public_key_2);
     assert_eq!(shared_public_key, shared_public_key_3);
 
-    //"encrypt" the list of candidates (that is known) with the shared public key
+    //"encrypt" the list of candidates (that is known) with the shared public key (in order to keep it in ElGamal format)
     params.set_encrypted_list(shared_public_key.clone());
 
     let registrar_1 = Registrar::create(0, params.clone(), shared_public_key.clone());
