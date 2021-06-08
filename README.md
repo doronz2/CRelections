@@ -35,5 +35,6 @@ All agents use a bulletin board (e.g., blockchain)
      3. Tellers tally the votes and publish the results
 
 ## References
-[1] http://www.arijuels.com/wp-content/uploads/2013/09/JCJ10.pdf
-[2] https://ieeexplore.ieee.org/iel5/4531131/4531132/04531164.pdf?casa_token=AmIw5XXM2o8AAAAA:kQGKEZM4ssGWsP5gAXKZuv_OMN8Dkn4bA4wmeVvLwHNFqTGDA5NbsPXBQdq8aw3wajBKuwdMmg
+ [Coercion-Resistant Electronic Elections] (http://www.arijuels.com/wp-content/uploads/2013/09/JCJ10.pdf)
+
+[2] <https://ieeexplore.ieee.org/iel5/4531131/4531132/04531164.pdf?casa_token=AmIw5XXM2o8AAAAA:kQGKEZM4ssGWsP5gAXKZuv_OMN8Dkn4bA4wmeVvLwHNFqTGDA5NbsPXBQdq8aw3wajBKuwdMmg>
