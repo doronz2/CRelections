@@ -2,7 +2,7 @@
 
 This library is a basic implementation of coercion resistance elections based on [1] and [2]
 
-#Entities
+# Entities
 There are four entities in the CR-election systems:
 1. Supervisor: setting the global parameters: number of voters,number of candidates, encrypted list of the candidates, nonce, etc. 
 2. Registrars: generate the credentials the voters need to cast their votes
