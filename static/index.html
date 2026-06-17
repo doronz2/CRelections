@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>CRelections — Coercion-Resistant E-Voting</title>
+<style>
+:root{
+  --bg:#0d1117; --surface:#161b22; --surface2:#21262d;
+  --border:#30363d; --text:#e6edf3; --muted:#8b949e;
+  --blue:#58a6ff; --green:#3fb950; --orange:#f0883e;
+  --red:#f85149; --yellow:#d29922; --purple:#bc8cff;
+  --font-mono:'JetBrains Mono','Fira Code','Cascadia Code',monospace;
+  --font-sans:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--font-sans);
+  font-size:14px;line-height:1.6;min-height:100vh;}
+
+/* ── Layout ── */
+.app{display:grid;grid-template-rows:auto 1fr;min-height:100vh;}
+.header{background:var(--surface);border-bottom:1px solid var(--border);
+  padding:14px 24px;display:flex;align-items:center;justify-content:space-between;}
+.header h1{font-size:15px;font-weight:600;letter-spacing:-.01em;}
+.header h1 span{color:var(--blue);}
+.status-bar{display:flex;gap:20px;align-items:center;}
+.status-pill{font-size:11px;padding:3px 10px;border-radius:12px;border:1px solid var(--border);
+  color:var(--muted);font-family:var(--font-mono);}
+.status-pill.on{border-color:var(--green);color:var(--green);}
+.status-pill.warn{border-color:var(--yellow);color:var(--yellow);}
+.main{display:grid;grid-template-columns:320px 1fr;overflow:hidden;}
+
+/* ── Left panel ── */
+.left{background:var(--surface);border-right:1px solid var(--border);
+  overflow-y:auto;padding:16px;}
+.section-title{font-size:11px;font-weight:600;text-transform:uppercase;
+  letter-spacing:.08em;color:var(--muted);margin-bottom:10px;margin-top:20px;}
+.section-title:first-child{margin-top:0;}
+
+/* ── Cards ── */
+.card{background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+  padding:14px;margin-bottom:10px;}
+.card-title{font-size:12px;font-weight:600;margin-bottom:10px;color:var(--text);}
+
+/* ── Form controls ── */
+label{display:block;font-size:11px;color:var(--muted);margin-bottom:4px;}
+input[type=number],select{width:100%;background:var(--bg);border:1px solid var(--border);
+  border-radius:6px;padding:6px 10px;color:var(--text);font-size:13px;outline:none;}
+input[type=number]:focus,select:focus{border-color:var(--blue);}
+
+/* ── Buttons ── */
+.btn{display:block;width:100%;padding:7px 12px;border-radius:6px;border:none;
+  font-size:13px;font-weight:500;cursor:pointer;transition:opacity .15s;text-align:center;}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn:not(:disabled):hover{opacity:.85;}
+.btn+.btn{margin-top:6px;}
+.btn-blue{background:#1f6feb;color:#fff;}
+.btn-green{background:#238636;color:#fff;}
+.btn-orange{background:#bd561d;color:#fff;}
+.btn-red{background:#b62324;color:#fff;}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);}
+
+/* ── Voter cards ── */
+.voter-list{display:flex;flex-direction:column;gap:6px;}
+.voter-card{background:var(--bg);border:1px solid var(--border);border-radius:6px;
+  padding:10px 12px;display:flex;align-items:center;justify-content:space-between;}
+.voter-card.registered{border-color:#238636;}
+.voter-name{font-size:13px;font-weight:500;}
+.voter-badges{display:flex;gap:4px;flex-wrap:wrap;}
+.badge{font-size:10px;padding:2px 6px;border-radius:4px;font-family:var(--font-mono);}
+.badge-green{background:#238636;color:#fff;}
+.badge-orange{background:#bd561d;color:#fff;}
+.badge-gray{background:var(--surface2);color:var(--muted);border:1px solid var(--border);}
+
+/* ── Right panel ── */
+.right{display:grid;grid-template-rows:1fr auto;overflow:hidden;}
+.log-panel{overflow-y:auto;padding:16px;font-family:var(--font-mono);font-size:12px;
+  line-height:1.7;background:var(--bg);}
+.log-panel .log-entry{margin-bottom:2px;}
+.log-panel .log-entry .ts{color:var(--muted);margin-right:6px;}
+.log-panel .log-entry.info .msg{color:var(--text);}
+.log-panel .log-entry.success .msg{color:var(--green);}
+.log-panel .log-entry.warning .msg{color:var(--orange);}
+.log-panel .log-entry.error .msg{color:var(--red);}
+.log-entry-prefix{margin-right:4px;}
+.info    .log-entry-prefix{color:var(--muted);}
+.success .log-entry-prefix{color:var(--green);}
+.warning .log-entry-prefix{color:var(--orange);}
+.error   .log-entry-prefix{color:var(--red);}
+
+/* ── Results panel ── */
+.results-panel{border-top:1px solid var(--border);padding:16px;
+  background:var(--surface);max-height:260px;overflow-y:auto;}
+.results-panel h3{font-size:12px;font-weight:600;text-transform:uppercase;
+  letter-spacing:.06em;color:var(--muted);margin-bottom:12px;}
+.result-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.result-candidate{width:60px;font-size:12px;font-weight:500;}
+.result-bar-wrap{flex:1;background:var(--surface2);border-radius:4px;height:18px;overflow:hidden;}
+.result-bar{height:100%;background:var(--blue);border-radius:4px;
+  transition:width .5s ease;min-width:0;}
+.result-bar.winner{background:var(--green);}
+.result-count{width:28px;font-size:12px;font-family:var(--font-mono);text-align:right;}
+.result-stats{display:flex;flex-wrap:wrap;gap:16px;margin-top:12px;
+  padding-top:12px;border-top:1px solid var(--border);}
+.stat{font-size:11px;color:var(--muted);}
+.stat strong{color:var(--text);display:block;font-size:15px;}
+.winner-banner{background:#0d4429;border:1px solid #238636;border-radius:6px;
+  padding:8px 12px;font-size:13px;color:var(--green);margin-bottom:12px;font-weight:500;}
+
+/* ── Spinner ── */
+.spinner{display:none;width:12px;height:12px;border:2px solid var(--border);
+  border-top-color:var(--blue);border-radius:50%;
+  animation:spin .6s linear infinite;vertical-align:middle;margin-left:6px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ── Divider ── */
+hr{border:none;border-top:1px solid var(--border);margin:14px 0;}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ── Header ── -->
+<header class="header">
+  <h1>CR<span>elections</span> — Coercion-Resistant E-Voting</h1>
+  <div class="status-bar">
+    <span class="status-pill" id="pill-setup">not set up</span>
+    <span class="status-pill" id="pill-voters">0 voters</span>
+    <span class="status-pill" id="pill-ballots">0 ballots</span>
+  </div>
+</header>
+
+<div class="main">
+
+<!-- ── Left: operations ── -->
+<div class="left">
+
+  <!-- Setup -->
+  <div class="section-title">1. Setup</div>
+  <div class="card">
+    <div class="card-title">Initialize Election</div>
+    <label for="num-voters">Number of voter slots</label>
+    <input type="number" id="num-voters" min="1" max="9" value="3" style="margin-bottom:10px"/>
+    <button class="btn btn-blue" onclick="setup()">
+      Initialize Election <span class="spinner" id="spin-setup"></span>
+    </button>
+    <button class="btn btn-ghost" style="margin-top:6px" onclick="reset()">Reset</button>
+  </div>
+
+  <!-- Register -->
+  <div class="section-title">2. Voter Registration</div>
+  <div class="card">
+    <div class="card-title">Register a Voter</div>
+    <label>Select voter</label>
+    <select id="sel-register" style="margin-bottom:10px">
+      <option value="">— set up election first —</option>
+    </select>
+    <button class="btn btn-blue" onclick="register()">
+      Register <span class="spinner" id="spin-register"></span>
+    </button>
+  </div>
+  <div class="voter-list" id="voter-list"></div>
+
+  <!-- Vote -->
+  <div class="section-title">3. Voting</div>
+  <div class="card">
+    <div class="card-title">Cast a Real Ballot</div>
+    <label>Voter</label>
+    <select id="sel-voter" style="margin-bottom:8px">
+      <option value="">—</option>
+    </select>
+    <label>Candidate</label>
+    <select id="sel-candidate" style="margin-bottom:10px">
+      <option value="0">0 — Alice</option>
+      <option value="1">1 — Bob</option>
+      <option value="2">2 — Carol</option>
+    </select>
+    <button class="btn btn-green" onclick="castVote(false)">
+      Cast Real Ballot <span class="spinner" id="spin-vote"></span>
+    </button>
+  </div>
+
+  <!-- Fake vote -->
+  <div class="section-title">4. Coercion Demo</div>
+  <div class="card" style="border-color:#bd561d22">
+    <div class="card-title" style="color:var(--orange)">Cast Coerced Ballot</div>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.5">
+      Simulates a voter being forced to vote under coercion.
+      The ballot uses an <em>unregistered</em> fake credential —
+      it looks real but will be eliminated at tabulation.
+      The voter's real ballot still wins.
+    </p>
+    <label>Voter whose identity is shown to coercer</label>
+    <select id="sel-fake-voter" style="margin-bottom:8px">
+      <option value="">—</option>
+    </select>
+    <label>Coerced choice</label>
+    <select id="sel-fake-candidate" style="margin-bottom:10px">
+      <option value="0">0 — Alice</option>
+      <option value="1">1 — Bob</option>
+      <option value="2">2 — Carol</option>
+    </select>
+    <button class="btn btn-orange" onclick="castVote(true)">
+      Submit Coerced Ballot <span class="spinner" id="spin-fake"></span>
+    </button>
+  </div>
+
+  <!-- Tabulate -->
+  <div class="section-title">5. Tabulation</div>
+  <div class="card">
+    <div class="card-title">Run Tabulation Pipeline</div>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.5">
+      Validates proofs → PET dedup → PET credential check →
+      RPC MixNet → threshold decrypt → tally.
+      Takes ~30 seconds.
+    </p>
+    <button class="btn btn-blue" onclick="tabulate()">
+      Tabulate <span class="spinner" id="spin-tabulate"></span>
+    </button>
+  </div>
+
+</div><!-- /left -->
+
+<!-- ── Right: log + results ── -->
+<div class="right">
+  <div class="log-panel" id="log-panel">
+    <div class="log-entry info">
+      <span class="ts">—</span>
+      <span class="log-entry-prefix">›</span>
+      <span class="msg">Ready. Initialize an election to begin.</span>
+    </div>
+  </div>
+  <div class="results-panel" id="results-panel" style="display:none"></div>
+</div>
+
+</div><!-- /main -->
+</div><!-- /app -->
+
+<script>
+const CANDS = ['Alice','Bob','Carol'];
+let logCount = 0;
+let polling  = false;
+
+// ── API ────────────────────────────────────────────────────────────────────
+
+async function api(method, path, body) {
+  const opts = { method, headers: {'Content-Type':'application/json'} };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(path, opts);
+  return r.json();
+}
+
+// ── Spinning ───────────────────────────────────────────────────────────────
+
+function spin(id, on) {
+  document.getElementById('spin-'+id).style.display = on ? 'inline-block' : 'none';
+}
+
+// ── Log rendering ──────────────────────────────────────────────────────────
+
+function renderLog(entries) {
+  const panel = document.getElementById('log-panel');
+  if (entries.length === logCount) return;
+  const newEntries = entries.slice(logCount);
+  logCount = entries.length;
+  const prefixes = { info:'›', success:'✓', warning:'⚠', error:'✗' };
+  newEntries.forEach(e => {
+    const div = document.createElement('div');
+    div.className = 'log-entry ' + e.level;
+    const ts = new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    div.innerHTML = `<span class="ts">${ts}</span>`
+      + `<span class="log-entry-prefix">${prefixes[e.level]||'›'}</span> `
+      + `<span class="msg">${escHtml(e.message)}</span>`;
+    panel.appendChild(div);
+  });
+  panel.scrollTop = panel.scrollHeight;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── State rendering ────────────────────────────────────────────────────────
+
+function renderState(s) {
+  // header pills
+  const pSetup   = document.getElementById('pill-setup');
+  const pVoters  = document.getElementById('pill-voters');
+  const pBallots = document.getElementById('pill-ballots');
+
+  if (s.setup) {
+    pSetup.textContent = 'ready'; pSetup.className = 'status-pill on';
+  } else {
+    pSetup.textContent = 'not set up'; pSetup.className = 'status-pill';
+  }
+  const reg = s.voters.filter(v=>v.registered).length;
+  pVoters.textContent  = reg + '/' + s.voter_count + ' registered';
+  pVoters.className    = reg > 0 ? 'status-pill on' : 'status-pill';
+  pBallots.textContent = s.ballots_in_box + ' ballot' + (s.ballots_in_box===1?'':'s');
+  pBallots.className   = s.ballots_in_box > 0 ? 'status-pill warn' : 'status-pill';
+
+  // voter selects
+  ['sel-register','sel-voter','sel-fake-voter'].forEach(id => {
+    const sel = document.getElementById(id);
+    const cur = sel.value;
+    sel.innerHTML = '';
+    if (!s.setup || s.voters.length === 0) {
+      sel.innerHTML = '<option value="">— set up election first —</option>';
+      return;
+    }
+    s.voters.forEach(v => {
+      const opt = document.createElement('option');
+      opt.value = v.id;
+      opt.textContent = v.name + (v.registered ? ' ✓' : '');
+      sel.appendChild(opt);
+    });
+    if (cur !== '' && sel.querySelector(`option[value="${cur}"]`)) sel.value = cur;
+  });
+
+  // voter list cards
+  const list = document.getElementById('voter-list');
+  list.innerHTML = '';
+  s.voters.forEach(v => {
+    const card = document.createElement('div');
+    card.className = 'voter-card' + (v.registered?' registered':'');
+    let badges = '';
+    if (v.registered)  badges += '<span class="badge badge-green">registered</span>';
+    else               badges += '<span class="badge badge-gray">unregistered</span>';
+    if (v.real_votes)  badges += `<span class="badge badge-green">${v.real_votes} real</span>`;
+    if (v.fake_votes)  badges += `<span class="badge badge-orange">${v.fake_votes} coerced</span>`;
+    card.innerHTML = `<span class="voter-name">${escHtml(v.name)}</span><div class="voter-badges">${badges}</div>`;
+    list.appendChild(card);
+  });
+
+  // results
+  if (s.result) renderResult(s.result);
+}
+
+function renderResult(r) {
+  const panel = document.getElementById('results-panel');
+  panel.style.display = 'block';
+  const max = Math.max(...r.counts, 1);
+  let html = '<h3>Election Results</h3>';
+  if (r.winner !== null && r.winner !== undefined) {
+    html += `<div class="winner-banner">🏆 ${CANDS[r.winner]} wins with ${r.counts[r.winner]} vote(s)</div>`;
+  }
+  r.counts.forEach((c,k) => {
+    const pct  = (c/max*100).toFixed(1);
+    const win  = r.winner === k;
+    html += `<div class="result-row">
+      <span class="result-candidate">${CANDS[k]||k}</span>
+      <div class="result-bar-wrap"><div class="result-bar${win?' winner':''}" style="width:${pct}%"></div></div>
+      <span class="result-count">${c}</span>
+    </div>`;
+  });
+  html += `<div class="result-stats">
+    <div class="stat"><strong>${r.total_cast}</strong> cast</div>
+    <div class="stat"><strong>${r.num_duplicates_removed}</strong> dupes removed</div>
+    <div class="stat"><strong>${r.num_invalid_credential}</strong> invalid creds</div>
+    <div class="stat"><strong>${r.num_counted}</strong> counted</div>
+  </div>`;
+  panel.innerHTML = html;
+}
+
+// ── Poll ───────────────────────────────────────────────────────────────────
+
+async function poll() {
+  try {
+    const s = await api('GET','/api/state');
+    renderLog(s.log);
+    renderState(s);
+  } catch(e) { /* server may be starting */ }
+}
+
+setInterval(poll, 1200);
+poll();
+
+// ── Actions ────────────────────────────────────────────────────────────────
+
+async function setup() {
+  const n = parseInt(document.getElementById('num-voters').value)||3;
+  spin('setup',true);
+  await api('POST','/api/setup',{num_voters:n});
+  spin('setup',false);
+  await poll();
+}
+
+async function reset() {
+  logCount = 0;
+  document.getElementById('log-panel').innerHTML='';
+  document.getElementById('results-panel').style.display='none';
+  document.getElementById('results-panel').innerHTML='';
+  await api('POST','/api/reset');
+  await poll();
+}
+
+async function register() {
+  const id = document.getElementById('sel-register').value;
+  if (id==='') return;
+  spin('register',true);
+  await api('POST','/api/register',{voter_id:parseInt(id)});
+  spin('register',false);
+  await poll();
+}
+
+async function castVote(fake) {
+  const voterSel = fake ? 'sel-fake-voter' : 'sel-voter';
+  const candSel  = fake ? 'sel-fake-candidate' : 'sel-candidate';
+  const id  = document.getElementById(voterSel).value;
+  const cnd = parseInt(document.getElementById(candSel).value);
+  if (id==='') return;
+  const spid = fake ? 'fake' : 'vote';
+  spin(spid, true);
+  await api('POST','/api/vote',{voter_id:parseInt(id), candidate:cnd, fake});
+  spin(spid, false);
+  await poll();
+}
+
+async function tabulate() {
+  spin('tabulate',true);
+  await api('POST','/api/tabulate');
+  spin('tabulate',false);
+  await poll();
+}
+</script>
+</body>
+</html>

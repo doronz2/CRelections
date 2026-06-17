@@ -22,3 +22,8 @@ rand = "0.6"
 
 vice-city = {git = "https://github.com/ZenGo-X/vice-city"}
 #vice-city = {path = "/Users/doronz/Dropbox/rustProjects/zengo_libs/vice-city"}
+
+axum       = { version = "0.7", features = ["json"] }
+tokio      = { version = "1",   features = ["full"] }
+tower-http = { version = "0.5", features = ["cors"] }
+serde_json = "1.0"

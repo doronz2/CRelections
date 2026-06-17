@@ -3,6 +3,20 @@ use cr_elections::citivas::voter::Voter;
 use cr_elections::{ElGamalPP, SupportedGroups};
 use std::io::{self, Write};
 
+mod server;
+
+// Dispatch: `cargo run -- server [port]` → web UI; otherwise → interactive CLI
+#[tokio::main]
+async fn main() {
+    let args: Vec<String> = std::env::args().collect();
+    if args.get(1).map(|s| s.as_str()) == Some("server") {
+        let port: u16 = args.get(2).and_then(|p| p.parse().ok()).unwrap_or(3000);
+        server::run(port).await;
+        return;
+    }
+    cli_main();
+}
+
 // ── helpers ───────────────────────────────────────────────────────────────
 
 fn prompt(msg: &str) -> String {
@@ -32,7 +46,7 @@ fn banner(title: &str) {
 
 // ── main ──────────────────────────────────────────────────────────────────
 
-fn main() {
+fn cli_main() {
     banner("CRelections — Coercion-Resistant E-Voting Demo");
 
     println!("This demo runs a Civitas-style election end-to-end.");
