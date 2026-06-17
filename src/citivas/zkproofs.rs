@@ -411,11 +411,8 @@ impl VotepfProof {
 }
 #[allow(dead_code)]
 pub fn dvrp_prover<E: Entity>(entity: &E, dvrp_input: &DvrpPublicInput, eta: BigInt) -> DvrpProof {
-    //let d = BigInt::from(3);
-    let w = BigInt::from(2);
-    //let r = BigInt::from(5);
     let d = BigInt::sample_below(&entity.get_q());
-    //let w = BigInt::sample_below(&entity.get_q());
+    let w = BigInt::sample_below(&entity.get_q());
     let r = BigInt::sample_below(&entity.get_q());
     let a = BigInt::mod_pow(&entity.get_generator(), &d, &entity.get_p());
     let b = BigInt::mod_pow(&dvrp_input.prover_public_key, &d, &entity.get_p());

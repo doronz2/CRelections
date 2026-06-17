@@ -1,3 +1,4 @@
+pub mod election;
 #[allow(dead_code)]
 mod dist_el_gamal;
 #[allow(dead_code)]
@@ -13,6 +14,8 @@ mod supervisor;
 #[allow(dead_code)]
 mod tellers;
 mod test_encryption_schemes;
+mod test_election;
+mod test_tellers;
 mod test_voter;
 mod test_zkproofs;
 #[allow(dead_code)]
