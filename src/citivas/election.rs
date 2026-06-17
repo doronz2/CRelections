@@ -230,14 +230,29 @@ impl Election {
         let mixed = run_mixnet(ev_list, &tellers, &pk).expect("MixNet failed");
 
         // ── Step 5: distributed decryption ─────────────────────────────────
+        // Collect decryption shares, verify each teller's DDH proof, then combine.
+        // Ciphertexts that cannot be decrypted by all tellers are skipped.
         let decrypted: Vec<BigInt> = mixed
             .iter()
-            .map(|c| {
-                let shares: Vec<BigInt> = tellers
+            .filter_map(|c| {
+                let msgs: Vec<_> = tellers
                     .iter()
-                    .map(|t| t.get_share().publish_shares_and_proofs_for_decryption(c).share)
+                    .map(|t| t.get_share().publish_shares_and_proofs_for_decryption(c))
                     .collect();
-                DistElGamal::combine_shares_and_decrypt(c, shares, &pp)
+                let valid_shares: Vec<BigInt> = tellers
+                    .iter()
+                    .zip(msgs.iter())
+                    .filter(|(t, msg)| {
+                        t.get_share()
+                            .verify_proof_for_decryption(c, msg, t.teller_index)
+                    })
+                    .map(|(_, msg)| msg.share.clone())
+                    .collect();
+                if valid_shares.len() == tellers.len() {
+                    Some(DistElGamal::combine_shares_and_decrypt(c, valid_shares, &pp))
+                } else {
+                    None
+                }
             })
             .collect();
 

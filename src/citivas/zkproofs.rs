@@ -217,6 +217,9 @@ impl ReencProofInput {
         proof: &ReencProof,
         l: usize,
     ) -> bool {
+        if self.c_list.len() != l || proof.d.len() != l || proof.r.len() != l {
+            return false;
+        }
         let mut list_a_i = Vec::with_capacity(l);
         let mut list_b_i = Vec::with_capacity(l);
 

@@ -179,7 +179,7 @@ impl Voter {
                 )
             })
             .map(|(_, cred)| cred.clone().private_credential_i)
-            .fold(BigInt::zero(), |sum, i| sum + i);
+            .fold(BigInt::zero(), |sum, i| (sum + i).mod_floor(&self.pp.q));
         return if cred_constructed_from_valid_shares.is_zero() {
             None
         } else {

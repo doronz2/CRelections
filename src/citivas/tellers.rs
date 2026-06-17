@@ -245,7 +245,9 @@ impl Teller {
             })
             .collect();
 
-        if valid_z.is_empty() {
+        // All tellers must contribute a valid share — a single compromised teller
+        // can bias the PET result, so we require n-of-n.
+        if valid_z.len() != z_shares.len() {
             return false;
         }
 
@@ -490,7 +492,14 @@ pub fn run_mixnet<'a>(
         records.push(teller.mix_both_passes(&input, pk));
     }
 
-    // Step 2: all tellers publish q_i; commitments already in record.commitment_q
+    // Step 2: verify that every teller's q_i matches its earlier commitment
+    for record in &records {
+        let expected = hash_sha256::HSha256::create_hash(&[&record.q_i]);
+        if expected != record.commitment_q {
+            return None;
+        }
+    }
+
     // Step 3: Q = hash(q_1, ..., q_n)
     let q_inputs: Vec<&BigInt> = records.iter().map(|r| &r.q_i).collect();
     let big_q = hash_sha256::HSha256::create_hash(&q_inputs);

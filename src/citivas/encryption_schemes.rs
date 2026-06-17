@@ -149,7 +149,7 @@ impl NonMellableElgamal {
 }
 
 pub fn reencrypt(c: &ElGamalCipherTextAndPK, random_nonce: &BigInt) -> ElGamalCiphertext {
-    assert!(random_nonce.le(&c.pk.pp.q));
+    assert!(random_nonce.lt(&c.pk.pp.q) && random_nonce.ge(&BigInt::zero()));
     let a = &c.ctx.c1;
     let b = &c.ctx.c2;
     let g_r = BigInt::mod_pow(&c.pk.pp.g, &random_nonce, &c.pk.pp.p);
