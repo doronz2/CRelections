@@ -18,7 +18,6 @@ mod test_election;
 mod test_tellers;
 mod test_voter;
 mod test_zkproofs;
-#[allow(dead_code)]
-mod voter;
+pub mod voter;
 #[allow(dead_code)]
 mod zkproofs;
